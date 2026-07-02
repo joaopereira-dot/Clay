@@ -33,7 +33,7 @@ SOURCE = HERE / "index.html"
 FONTS = HERE / "vendor" / "fonts.embedded.css"
 OUT = HERE / "dist" / "artifact.html"
 
-TITLE = "Field Journal — Personalized Puppy Training"
+TITLE = "Puppy Tracker — Field Journal (Personalized Training)"
 
 
 def extract(pattern: str, text: str, what: str) -> str:
