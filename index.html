@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Field Journal — Personalized Puppy Training</title>
+<meta name="description" content="A personalized, source-backed dog training plan. Track multiple dogs, answer a few questions, and get guidance tailored to each dog's age and goals.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ECE2CC;
+    --paper-dark:#E1D3B2;
+    --ink:#2B2A28;
+    --ink-soft:#5B5647;
+    --gold:#C1912E;
+    --gold-deep:#96701F;
+    --forest:#33463A;
+    --forest-deep:#22301F;
+    --brick:#9C5238;
+    --line:#c9b98f;
+    --card:#F4ECDA;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(51,70,58,0.06), transparent),
+      var(--paper);
+    color:var(--ink);
+    font-family:'Inter', system-ui, sans-serif;
+    min-height:100vh;
+    padding-bottom:70px;
+    line-height:1.5;
+  }
+  .noise{
+    position:fixed; inset:0; pointer-events:none; opacity:0.035; z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap{ position:relative; z-index:1; max-width:780px; margin:0 auto; padding:0 22px; }
+
+  /* ---------- Header ---------- */
+  header{ padding:40px 0 16px; border-bottom:1px solid var(--line); }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--gold-deep); font-weight:500;
+  }
+  h1{
+    font-family:'Fraunces', Georgia, serif; font-optical-sizing:auto; font-weight:600;
+    font-size:clamp(30px, 6vw, 44px); line-height:1.04; margin:8px 0 6px;
+    color:var(--forest-deep); text-wrap:balance;
+  }
+  .sub{ color:var(--ink-soft); font-size:15px; max-width:56ch; margin:0; }
+
+  /* ---------- Dog tabs ---------- */
+  .dogtabs{ display:flex; gap:9px; flex-wrap:wrap; align-items:center; padding:18px 0 0; }
+  .dogtab{
+    font-family:'IBM Plex Mono', monospace; font-size:13px;
+    background:var(--card); border:1px solid var(--line); color:var(--ink-soft);
+    padding:8px 13px; border-radius:999px; cursor:pointer; display:flex; align-items:center; gap:7px;
+    transition:all .18s ease; -webkit-tap-highlight-color:transparent;
+  }
+  .dogtab:hover{ border-color:var(--gold); color:var(--ink); }
+  .dogtab.active{ background:var(--forest); border-color:var(--forest); color:var(--paper); }
+  .dogtab .dot{ width:7px; height:7px; border-radius:50%; background:var(--gold); }
+  .dogtab.active .dot{ background:var(--paper); }
+  .dogtab.add{ border-style:dashed; color:var(--gold-deep); }
+  .dogtab.add:hover{ background:rgba(193,145,46,0.08); }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    font-family:'IBM Plex Mono', monospace; font-size:13px; cursor:pointer;
+    padding:10px 16px; border-radius:9px; border:1px solid var(--line);
+    background:var(--card); color:var(--ink); transition:all .18s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .btn:hover{ border-color:var(--gold); }
+  .btn.primary{ background:var(--forest); border-color:var(--forest); color:var(--paper); }
+  .btn.primary:hover{ background:var(--forest-deep); }
+  .btn.ghost{ background:none; }
+  .btn.danger:hover{ border-color:var(--brick); color:var(--brick); }
+  .btn:focus-visible{ outline:2px solid var(--gold-deep); outline-offset:2px; }
+
+  /* ---------- Onboarding form ---------- */
+  .form-intro{ margin:26px 0 20px; }
+  .form-intro h2{
+    font-family:'Fraunces', serif; font-weight:600; font-size:26px; color:var(--forest-deep); margin:0 0 6px;
+  }
+  .form-intro p{ color:var(--ink-soft); font-size:14.5px; margin:0; max-width:56ch; }
+  .fieldset{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px; margin-bottom:16px;
+  }
+  .fieldset legend, .field-label{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--brick); font-weight:500;
+  }
+  .field-label{ display:block; margin-bottom:9px; }
+  .field-help{ font-size:12.5px; color:var(--ink-soft); margin:2px 0 12px; }
+  .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+  .row > div{ flex:1; min-width:140px; }
+  input[type=text], input[type=number], select{
+    width:100%; font-family:'Inter', sans-serif; font-size:15px;
+    background:var(--paper); border:1px solid var(--line); border-radius:9px;
+    padding:11px 12px; color:var(--ink);
+  }
+  input:focus, select:focus{ outline:2px solid var(--gold-deep); outline-offset:1px; border-color:var(--gold-deep); }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    font-size:13.5px; font-family:'Inter',sans-serif;
+    background:var(--paper); border:1px solid var(--line); color:var(--ink-soft);
+    padding:9px 13px; border-radius:999px; cursor:pointer; transition:all .15s ease;
+    -webkit-tap-highlight-color:transparent; user-select:none;
+  }
+  .chip:hover{ border-color:var(--gold); }
+  .chip.on{ background:var(--forest); border-color:var(--forest); color:var(--paper); font-weight:500; }
+  .chip:focus-visible{ outline:2px solid var(--gold-deep); outline-offset:2px; }
+  .form-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+
+  /* ---------- Stage briefing ---------- */
+  .briefing{
+    background:linear-gradient(180deg, rgba(51,70,58,0.05), transparent), var(--card);
+    border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin:24px 0 18px;
+  }
+  .briefing .stage-eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--gold-deep);
+  }
+  .briefing h2{
+    font-family:'Fraunces', serif; font-weight:600; font-size:24px; color:var(--forest-deep);
+    margin:5px 0 4px; text-wrap:balance;
+  }
+  .briefing .stage-tag{ font-size:13px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; }
+  .briefing .lede{ font-size:14.5px; color:var(--ink); margin:12px 0 0; }
+  .brief-cols{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
+  @media(max-width:560px){ .brief-cols{ grid-template-columns:1fr; } }
+  .brief-block .bh{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--ink-soft); margin-bottom:7px;
+  }
+  .brief-block ul{ margin:0; padding-left:17px; font-size:13.5px; color:var(--ink); }
+  .brief-block li{ margin-bottom:4px; }
+  .caution{
+    margin-top:16px; background:rgba(156,82,56,0.09); border:1px solid rgba(156,82,56,0.28);
+    border-radius:10px; padding:11px 14px; font-size:13px; color:#7a3f2b;
+  }
+  .caution b{ color:var(--brick); }
+
+  /* ---------- Overall progress ---------- */
+  .overall{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px; margin-bottom:8px; display:flex; align-items:center; gap:16px;
+  }
+  .overall .paw{ width:38px; height:38px; flex:none; }
+  .overall-text{ flex:1; }
+  .overall-text .label{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--ink-soft); margin-bottom:5px;
+  }
+  .bar-track{ height:9px; background:var(--paper-dark); border-radius:6px; overflow:hidden; }
+  .bar-fill{ height:100%; background:linear-gradient(90deg, var(--gold-deep), var(--gold)); border-radius:6px; transition:width .5s ease; }
+  .overall-num{
+    font-family:'Fraunces', serif; font-weight:600; font-size:26px; color:var(--forest-deep);
+    min-width:58px; text-align:right; font-variant-numeric:tabular-nums;
+  }
+  .save-status{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft);
+    text-align:right; margin:6px 0 22px; min-height:14px; opacity:0.8;
+  }
+
+  .plan-heading{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--ink-soft); margin:22px 0 12px; display:flex; align-items:center; gap:10px;
+  }
+  .plan-heading::after{ content:''; flex:1; height:1px; background:var(--line); }
+
+  /* ---------- Module cards ---------- */
+  .module{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    overflow:hidden; margin-bottom:12px;
+  }
+  .module.mastered{ opacity:0.72; }
+  .mod-head{
+    padding:15px 17px; cursor:pointer; display:flex; align-items:center; gap:13px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mod-head:hover{ background:rgba(193,145,46,0.06); }
+  .mod-icon{ width:34px; height:34px; flex:none; border-radius:9px; background:var(--paper-dark);
+    display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .mod-title-block{ flex:1; min-width:0; }
+  .mod-title{ font-family:'Fraunces', serif; font-weight:600; font-size:18px; color:var(--forest-deep); }
+  .mod-focus{ font-size:12.5px; color:var(--ink-soft); }
+  .mod-badge{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase;
+    padding:3px 8px; border-radius:999px; white-space:nowrap;
+  }
+  .badge-priority{ background:rgba(156,82,56,0.14); color:var(--brick); }
+  .badge-time{ background:rgba(193,145,46,0.18); color:var(--gold-deep); }
+  .badge-done{ background:var(--forest); color:var(--paper); }
+  .mod-mini{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--gold-deep); white-space:nowrap; }
+  .chevron{ width:15px; height:15px; flex:none; transition:transform .25s ease; color:var(--ink-soft); }
+  .module.open .chevron{ transform:rotate(180deg); }
+  .mod-body{ max-height:0; overflow:hidden; transition:max-height .4s ease; }
+  .module.open .mod-body{ max-height:2200px; }
+  .mod-inner{ padding:2px 17px 18px; border-top:1px solid var(--line); }
+  .why{
+    font-size:13.5px; color:var(--ink); background:var(--paper); border-radius:10px;
+    padding:12px 14px; margin:14px 0 6px;
+  }
+  .why .src{ display:block; margin-top:8px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; }
+  .why .src a{ color:var(--gold-deep); }
+  .section-label{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--ink-soft); margin:16px 0 8px;
+  }
+  ul.tasklist{ list-style:none; margin:0; padding:0; }
+  .task{ display:flex; align-items:flex-start; gap:11px; padding:7px 0; font-size:14.5px; line-height:1.45; cursor:pointer; }
+  .task input{ position:absolute; opacity:0; width:0; height:0; }
+  .box{
+    width:19px; height:19px; flex:none; margin-top:1px; border:1.5px solid var(--gold-deep);
+    border-radius:5px; display:flex; align-items:center; justify-content:center; transition:all .15s ease;
+  }
+  .task input:checked + .box{ background:var(--forest); border-color:var(--forest); }
+  .box svg{ width:11px; height:11px; opacity:0; transition:opacity .15s ease; }
+  .task input:checked + .box svg{ opacity:1; }
+  .task input:focus-visible + .box{ outline:2px solid var(--gold-deep); outline-offset:2px; }
+  .task-text{ transition:color .15s ease, opacity .15s ease; }
+  .task input:checked ~ .task-text{ color:var(--ink-soft); text-decoration:line-through; opacity:0.72; }
+  .milestone{ background:var(--paper-dark); border-radius:9px; padding:9px 13px; margin-top:10px; }
+  .milestone .task{ padding:0; }
+  .milestone .box{ border-color:var(--brick); }
+  .milestone input:checked + .box{ background:var(--brick); border-color:var(--brick); }
+  .ms-label{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--brick); margin-bottom:5px; }
+
+  .profile-actions{ display:flex; gap:10px; flex-wrap:wrap; margin:26px 0 8px; }
+
+  /* ---------- Footer ---------- */
+  footer{ margin-top:40px; padding:22px 0 0; border-top:1px solid var(--line); font-size:13px; color:var(--ink-soft); line-height:1.65; }
+  footer h3{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--brick); margin:0 0 10px; }
+  .src-list{ display:grid; grid-template-columns:1fr 1fr; gap:4px 20px; margin:0 0 18px; padding:0; list-style:none; }
+  @media(max-width:560px){ .src-list{ grid-template-columns:1fr; } }
+  .src-list a{ color:var(--gold-deep); text-decoration:none; }
+  .src-list a:hover{ text-decoration:underline; }
+  .disclaimer{ background:rgba(156,82,56,0.07); border:1px solid rgba(156,82,56,0.2); border-radius:10px; padding:12px 14px; font-size:12.5px; }
+  .empty{ text-align:center; padding:50px 20px; color:var(--ink-soft); }
+  .empty h2{ font-family:'Fraunces',serif; color:var(--forest-deep); font-size:26px; margin:14px 0 8px; }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+  .visually-hidden{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Personalized dog training · source-backed</div>
+    <h1>Field Journal</h1>
+    <p class="sub">Add each dog, answer a few questions, and get a training plan tuned to their age, what they already know, and what you're working toward. Check things off as you go — progress saves automatically.</p>
+    <div class="dogtabs" id="dogtabs"></div>
+  </div>
+</header>
+
+<main class="wrap" id="app"></main>
+
+<footer class="wrap">
+  <h3>Sources &amp; further reading</h3>
+  <ul class="src-list" id="srcList"></ul>
+  <div class="disclaimer">
+    <b>A note on safety:</b> This plan is general education, not veterinary or professional behavior advice. Vaccination status changes what's safe for public socialization — confirm outdoor/public steps with your vet. For fear, aggression, or severe separation distress, work with a certified trainer or veterinary behaviorist. Progress is saved privately on this device/account and isn't visible to anyone else.
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   Storage: works in the Claude Artifact runtime (window.storage,
+   account-synced) OR any plain web host (localStorage, per-device),
+   with an in-memory fallback so nothing ever crashes.
+   ============================================================ */
+const Store = (() => {
+  const hasArtifact = typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function';
+  let hasLocal = false;
+  try { const k='__t'; localStorage.setItem(k,'1'); localStorage.removeItem(k); hasLocal = true; } catch(e){ hasLocal = false; }
+  const mem = {};
+  const mode = hasArtifact ? 'account' : (hasLocal ? 'device' : 'session');
+  return {
+    mode,
+    async get(key){
+      if (hasArtifact){ try{ const r = await window.storage.get(key,false); return r && r.value ? r.value : null; }catch(e){ return null; } }
+      if (hasLocal){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
+      return key in mem ? mem[key] : null;
+    },
+    async set(key,val){
+      if (hasArtifact){ try{ return !!(await window.storage.set(key,val,false)); }catch(e){ return false; } }
+      if (hasLocal){ try{ localStorage.setItem(key,val); return true; }catch(e){ return false; } }
+      mem[key]=val; return false;
+    }
+  };
+})();
+const DATA_KEY = 'puppy-tracker-v2';
+
+/* ============================================================
+   Reference lists
+   ============================================================ */
+const SKILLS = [
+  ['marker','Understands a marker / clicker'],
+  ['name','Reliable name response'],
+  ['potty','House / potty trained'],
+  ['crate','Comfortable in a crate'],
+  ['bite','Gentle mouth (bite inhibition)'],
+  ['sit','Sit'],
+  ['down','Down'],
+  ['stay','Stay / wait'],
+  ['leaveit','Leave it'],
+  ['leash','Loose-leash walking'],
+  ['recall','Comes when called'],
+  ['settle','Settles / goes to a mat'],
+  ['alone','Relaxed when left alone'],
+  ['handling','Tolerates handling / grooming'],
+  ['socialization','Well socialized already'],
+];
+const GOALS = [
+  ['socialize','Socialization'],
+  ['potty','Potty / house training'],
+  ['crate','Crate training'],
+  ['manners','Basic manners & obedience'],
+  ['biting','Stop nipping / mouthing'],
+  ['leash','Loose-leash walking'],
+  ['recall','Reliable recall'],
+  ['alone','Alone-time / independence'],
+  ['impulse','Impulse control & calm'],
+  ['enrichment','Enrichment & tricks'],
+];
+const CHALLENGES = [
+  ['biting','Biting / mouthing'],
+  ['accidents','Potty accidents'],
+  ['pulling','Pulling on leash'],
+  ['jumping','Jumping up'],
+  ['barking','Barking'],
+  ['norecall','Ignores recall'],
+  ['chewing','Destructive chewing'],
+  ['hyper','Over-excited / can’t settle'],
+  ['fearful','Fearful / shy'],
+  ['destructive_alone','Struggles when alone'],
+];
+
+/* ============================================================
+   Sources
+   ============================================================ */
+const SOURCES = {
+  avsab:   {name:'AVSAB — Puppy Socialization Position Statement', url:'https://avsab.org/wp-content/uploads/2018/03/Puppy_Socialization_Position_Statement_Download_-_10-3-14.pdf'},
+  akcTime: {name:'AKC — Puppy Training Timeline', url:'https://www.akc.org/expert-advice/training/puppy-training-timeline-teaching-good-behavior-before-its-too-late/'},
+  akcGrow: {name:'AKC — Puppy Growth Timeline', url:'https://www.akc.org/expert-advice/puppy-information/puppy-growth-timeline-transitions-puppyhood/'},
+  akcRecall:{name:'AKC — Reliable Recall', url:'https://www.akc.org/expert-advice/training/reliable-recall-train-dogs-to-come-when-called/'},
+  aspcaHouse:{name:'ASPCA — House Training Your Dog or Puppy', url:'https://www.aspca.org/news/house-training-your-dog-or-puppy'},
+  aspcaSep:{name:'ASPCA — Separation Anxiety', url:'https://www.aspca.org/pet-care/dog-care/common-dog-behavior-issues/separation-anxiety'},
+  pryorClicker:{name:'Karen Pryor — Charging the Clicker', url:'https://clickertraining.com/charging-the-clicker/'},
+  pryorLeash:{name:'Karen Pryor — Loose-Leash Walking', url:'https://clickertraining.com/loose-leash-walking/'},
+  dunbar:  {name:'Dr. Ian Dunbar — Teaching Bite Inhibition', url:'https://www.dogstardaily.com/training/teaching-bite-inhibition'},
+  cornell: {name:'Cornell Riney Canine Health Center — The Teenage Years', url:'https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-topics/teenage-years-puppy-proofing-and-training-tips'},
+  sdhumane:{name:'San Diego Humane Society — Loose-Leash Walking', url:'https://sdhumane.org/resources/training-tips-loose-leash-walking/'},
+  wdjRecall:{name:'Whole Dog Journal — Teaching a Reliable Recall', url:'https://www.whole-dog-journal.com/training/teaching-a-reliable-recall/'},
+  purina:  {name:'Purina — Brain Games for Dogs', url:'https://www.purina.com/articles/dog/behavior/play/brain-games-for-dogs'},
+};
+
+/* ============================================================
+   Life-stage briefings (driven by age in weeks)
+   ============================================================ */
+function ageWeeks(dog){
+  const v = Number(dog.ageValue)||0;
+  if (dog.ageUnit === 'weeks') return v;
+  if (dog.ageUnit === 'months') return Math.round(v*4.345);
+  if (dog.ageUnit === 'years') return Math.round(v*52.14);
+  return v;
+}
+function ageLabel(dog){
+  const v = Number(dog.ageValue)||0;
+  const u = dog.ageUnit || 'weeks';
+  return v + ' ' + (v===1 ? u.slice(0,-1) : u);
+}
+function getStage(w){
+  if (w < 12) return {
+    key:'window', eyebrow:'Prime socialization window', tag:'Roughly up to 12 weeks',
+    lede:"This is the single most important developmental window your dog will ever have. Right now sociability outweighs fear, so positive, bite-sized new experiences build a confident adult and prevent lifelong fear and reactivity.",
+    happening:['Sponge-like: soaking up experiences fast','Very short attention span — keep sessions 2–5 min','Sensitive period that closes around 12–16 weeks'],
+    priorities:['Positive socialization every day','Marker + name + potty + crate','Gentle handling & bite inhibition'],
+    caution:"Vaccines aren’t complete yet. Socialize <b>smart</b>: known-healthy vaccinated dogs, clean surfaces, and carry your pup in high-traffic areas. AVSAB notes more young dogs are lost to behavior problems than to infectious disease — so start now, carefully."
+  };
+  if (w < 17) return {
+    key:'closing', eyebrow:'Closing the window', tag:'~12 to 16 weeks',
+    lede:"The critical socialization window is about to shut around 16 weeks. These are your last high-impact weeks for positive exposure — pair them with the first foundation cues.",
+    happening:['Window closing ~16 weeks','Baby teeth loosening — chewing ramps up','Ready for luring sit/down and leash feel'],
+    priorities:['Finish key socialization exposures','Sit, down, name, leash introduction','Keep potty & crate routines tight'],
+    caution:"Prioritize <b>new positive experiences now</b> — after ~16 weeks it takes far more work to build the same comfort. Confirm outing safety with your vet based on vaccine status."
+  };
+  if (w < 27) return {
+    key:'juvenile', eyebrow:'Juvenile & teething', tag:'~4 to 6 months',
+    lede:"Teething is in full swing and your pup is testing boundaries. Keep socializing, lock in foundation obedience, and channel chewing onto legal outlets.",
+    happening:['Adult teeth coming in — chewing peaks','Possible first “fear period” (~4–5 mo)','Longer focus; ready to proof basics'],
+    priorities:['Provide plenty of legal chews','Build sit/down/stay + leave it','First vet-cleared outings & recall on a line'],
+    caution:"A brief <b>fear period</b> is normal now — if something spooks your pup, stay calm and upbeat, don’t force or flood. Keep new experiences positive."
+  };
+  if (w < 53) return {
+    key:'early-adol', eyebrow:'Early adolescence', tag:'~6 to 12 months',
+    lede:"Hormones are online and the brain is remodeling. Expect recall and leash manners to wobble — this is normal, not defiance. Go back to basics and pay well.",
+    happening:['Prefrontal cortex remodeling → weaker impulse control','Distractibility and boundary-testing rise','Learned cues are still there, just harder to retrieve'],
+    priorities:['Re-drill basics in easy settings','Manage with long lines & gates','Reward heavily; keep sessions short & frequent'],
+    caution:"Keep your teenager <b>on a leash or long line</b> outside secure areas — a blown recall now is a safety risk, and every successful bolt makes the next one likelier."
+  };
+  if (w < 79) return {
+    key:'adolescence', eyebrow:'Adolescence', tag:'~12 to 18 months',
+    lede:"Peak teenager. Testing, selective hearing, and “secondary fear periods” come and go. Consistency beats intensity — steady daily reps carry you through.",
+    happening:['Emotional drive outpaces impulse control','Secondary fear periods may flare and fade','Regression is temporary — memories aren’t lost'],
+    priorities:['Consistency over intensity','Proof cues gradually against distraction','Prevent rehearsal of bad habits with management'],
+    caution:"Don’t abandon a cue because it “broke.” <b>Drop your criteria</b>, win in easy conditions, and rebuild. Most dogs settle noticeably by 18–24 months."
+  };
+  return {
+    key:'adult', eyebrow:'Young adult', tag:'18 months and up',
+    lede:"The hardest part is behind you. Now you polish and proof: reliable cues in real-world distraction, plus steady mental and physical exercise to keep a good citizen good.",
+    happening:['Maturing focus and impulse control','Skills generalize with practice','Boredom is now the main behavior driver'],
+    priorities:['Proof recall/leash in busy settings','Keep a daily enrichment habit','Maintain — reward the behaviors you like'],
+    caution:"A bored adult invents its own hobbies. Keep a <b>daily mental outlet</b> and your training holds."
+  };
+}
+
+/* ============================================================
+   Training modules. Each has score(dog) -> number|null (null=hide),
+   plus content. skill = matching "already knows" id (mastered bucket).
+   ============================================================ */
+function has(arr,id){ return Array.isArray(arr) && arr.includes(id); }
+const MODULES = [
+  {
+    id:'marker', skill:'marker', icon:'🎯', title:'Marker training foundation',
+    focus:'Charge a click or a “yes!” that predicts a treat',
+    score(d){ return 96; },
+    why:"Nearly every skill below trains faster once your dog knows a <b>marker</b> — a click or a crisp “yes!” that means “that exact thing — a treat is coming.” It bridges the gap between the behavior and the reward.",
+    source:SOURCES.pryorClicker,
+    steps:[
+      'Load 15–20 pea-sized soft treats your dog loves.',
+      'Click (or say “yes!”), then immediately give a treat. Repeat 10–15× — no behavior required yet.',
+      'Test it: in a quiet moment, mark once. If your dog snaps to look for the treat, it’s “charged.”',
+      'Now mark the instant your dog does something you like (a sit, eye contact), then treat.',
+      'Keep sessions 2–5 minutes, a few times a day.'
+    ],
+    milestone:'Your dog orients to you expecting a treat the moment you mark.'
+  },
+  {
+    id:'name', skill:'name', icon:'👂', title:'Name & attention',
+    focus:'A reflexive look the moment you say their name',
+    score(d){ return 90; },
+    why:"A dog who automatically looks at you on their name can be redirected out of almost any trouble. It’s the cheapest safety cue you’ll ever build.",
+    source:SOURCES.akcTime,
+    steps:[
+      'Say the name once in a happy voice; the second they look, mark and treat.',
+      'Do 10 reps, 3× a day, in a quiet room first.',
+      'Say it once — never nag the name repeatedly. Make looking the thing that pays.',
+      'Add mild distractions (another room, the yard) only once it’s solid.',
+      'Reward the check-ins your dog offers on their own.'
+    ],
+    milestone:'Responds to their name 8/10 times, including with mild distractions.'
+  },
+  {
+    id:'socialization', skill:'socialization', icon:'🌐', title:'Socialization plan',
+    focus:'Positive exposure to the world, on your dog’s terms',
+    score(d){ const w=ageWeeks(d); if (w<17) return 100; if (w<27) return 78; if (has(d.goals,'socialize')||has(d.challenges,'fearful')) return 70; return null; },
+    why(d){ const w=ageWeeks(d); return w<17
+      ? "The prime socialization window closes around 12–16 weeks, and it does more to prevent lifelong fear and reactivity than anything else you’ll do. Aim for variety and <b>positive associations</b>, never flooding."
+      : "The critical window has largely closed, but confident exposure still helps — especially for a shy or under-socialized dog. Go slower, keep everything positive, and let your dog set the pace."; },
+    source:SOURCES.avsab,
+    steps:[
+      'Aim for a few NEW, positive experiences daily: surfaces, sounds, people of all ages/looks, hats, umbrellas.',
+      'Pair anything novel with treats; let your dog approach at their own pace — never force or drag.',
+      'Until vaccines are complete, carry your pup or use a stroller in busy places; skip dog parks and unknown dogs.',
+      'Invite calm, vaccinated adult dogs over for good role-model play.',
+      'Play thunder / vacuum / traffic recordings low during meals to build sound tolerance.',
+      'If available, join a well-run vaccinated puppy class (AVSAB recommends starting as early as 7–8 weeks).'
+    ],
+    milestone:'Meets new people, surfaces, and sounds with curiosity rather than fear.'
+  },
+  {
+    id:'potty', skill:'potty', icon:'🏡', title:'House / potty training',
+    focus:'A schedule, supervision, and big rewards for going outside',
+    score(d){ const w=ageWeeks(d); if (has(d.challenges,'accidents')) return 94; if (has(d.goals,'potty')) return 88; if (w<27) return 80; return null; },
+    why:"House training is about <b>preventing accidents while rewarding success</b>, not punishing mistakes. A predictable schedule plus supervision does most of the work.",
+    source:SOURCES.aspcaHouse,
+    steps:[
+      'Take out on a schedule: after waking, eating, drinking, and playing — plus every 45–60 min for young pups.',
+      'Go to the same spot, wait, then mark and treat the instant they finish outside.',
+      'Learn the pre-potty tells — sniffing, circling, stiff back legs — and get out fast.',
+      'Supervise indoors, or use a crate/pen; accidents happen when no one’s watching.',
+      'Never scold after the fact — dogs can’t connect it. Clean accidents with an enzymatic cleaner.'
+    ],
+    milestone:'Signals to go out or reliably holds it; accident-free for several-hour stretches.'
+  },
+  {
+    id:'crate', skill:'crate', icon:'🛏️', title:'Crate comfort',
+    focus:'Build the crate into a safe, happy den',
+    score(d){ const w=ageWeeks(d); if (has(d.goals,'crate')) return 84; if (w<27) return 66; if (has(d.goals,'alone')||has(d.challenges,'destructive_alone')) return 58; return null; },
+    why:"A crate your dog <b>loves</b> gives you a safe management tool for house training, alone-time, travel, and rest. The whole game is positive associations — never a punishment box.",
+    source:SOURCES.aspcaHouse,
+    steps:[
+      'Feed meals in the crate with the door open; toss treats in for exploring.',
+      'Close the door for a few seconds while you sit nearby, then build up slowly.',
+      'Offer a long-lasting chew or stuffed toy that only appears in the crate.',
+      'Stay in the room at first so the crate doesn’t predict you leaving.',
+      'Keep it positive — never crate as a time-out.'
+    ],
+    milestone:'Settles calmly in the crate for 20–30 minutes while you’re nearby.'
+  },
+  {
+    id:'bite', skill:'bite', icon:'🦷', title:'Bite inhibition & mouthing',
+    focus:'Teach a soft mouth in four stages',
+    score(d){ const w=ageWeeks(d); if (has(d.challenges,'biting')) return 92; if (has(d.goals,'biting')) return 86; if (w<27) return 74; return null; },
+    why:"Puppies explore with their mouths. Rather than banning teeth outright, Dr. Ian Dunbar teaches a <b>soft mouth</b> in four stages — the most important safety lesson a dog learns, because it governs how they’d respond if ever truly frightened.",
+    source:SOURCES.dunbar,
+    steps:[
+      'Let play continue until teeth hurt — then yelp “Ow!” and freeze / withdraw attention for a few seconds.',
+      'Stage 1: eliminate painful bites. Stage 2: reduce all pressure so any touch is gentle.',
+      'Stage 3: teach “off” — mouthing stops the instant you ask.',
+      'Always redirect to a chew toy; keep hands still (jerking away invites chasing).',
+      'Reward gentle mouths and calm — never wrestle with hands or let clothing-biting become a game.'
+    ],
+    milestone:'Mouthing is soft and stops on cue; no painful bites.'
+  },
+  {
+    id:'cues', skill:'sit', icon:'🪑', title:'Sit, down & first cues',
+    focus:'Lure the basics, then fade the food',
+    score(d){ if (has(d.goals,'manners')) return 82; if (!has(d.known,'sit')||!has(d.known,'down')) return 64; return null; },
+    why:"Sit and down are the building blocks of manners and impulse control — a dog that can park itself has an alternative to jumping, bolting, or pestering.",
+    source:SOURCES.akcTime,
+    steps:[
+      'Sit: hold a treat at the nose and lift it back over the head; mark the moment the rear hits the floor.',
+      'Down: from a sit, lure the treat straight down to the floor and slightly out; mark when elbows land.',
+      'Add the word only once you can predict the movement — then fade the lure to a hand signal.',
+      'Do 5–10 quick reps several times a day; stop while they still want more.'
+    ],
+    milestone:'Sits and downs on a single verbal cue 8/10 times.'
+  },
+  {
+    id:'impulse', skill:'leaveit', icon:'✋', title:'Impulse control: leave it & wait',
+    focus:'Reward the choice to disengage',
+    score(d){ if (has(d.goals,'impulse')) return 80; if (has(d.challenges,'jumping')||has(d.challenges,'hyper')) return 76; if (has(d.goals,'manners')) return 60; return null; },
+    why:"Impulse control is a skill you can train. Teaching your dog that <b>self-restraint pays</b> — backing off, waiting, choosing calm — quietly fixes jumping, grabbing, and door-bolting.",
+    source:SOURCES.akcTime,
+    steps:[
+      'Leave it: closed fist with a treat; the second they stop nosing/pawing, mark and reward from the OTHER hand.',
+      'Wait: ask for a brief pause at doorways and before the food bowl; release with an “Okay.”',
+      'Reward the disengagement itself — calm and patience earn the good stuff.',
+      'Build duration one second at a time before adding harder temptations.'
+    ],
+    milestone:'Leaves a treat on cue and waits 3–5 seconds at doors and the bowl.'
+  },
+  {
+    id:'leash', skill:'leash', icon:'🦮', title:'Loose-leash walking',
+    focus:'“Red light / green light” — pulling never works',
+    score(d){ const w=ageWeeks(d); if (has(d.challenges,'pulling')) return 88; if (has(d.goals,'leash')) return 82; if (w>=12) return 56; return null; },
+    why:"The secret is simple: <b>never move in the direction your dog is pulling.</b> A loose leash earns forward progress; a tight one stops it. Dogs figure this out fast when we’re consistent.",
+    source:SOURCES.pryorLeash,
+    steps:[
+      'First reward check-ins and eye contact indoors, before you go anywhere far.',
+      'Red light / green light: move forward only while the leash is loose; stop the instant it tightens.',
+      'The reward for slack is getting to keep walking; treat often at your side early on.',
+      'Use a front-clip harness; never a retractable leash — it literally trains pulling.',
+      'Keep first outings short; offer sniffing as a reward you control.'
+    ],
+    milestone:'Walks a short route on a mostly loose leash without constant pulling.'
+  },
+  {
+    id:'recall', skill:'recall', icon:'🏃', title:'Reliable recall',
+    focus:'Make coming to you the best deal in the world',
+    score(d){ const w=ageWeeks(d); if (has(d.challenges,'norecall')) return 90; if (has(d.goals,'recall')) return 84; if (w>=12) return 58; return null; },
+    why:"Recall is a life-saver, so it must always pay off. Build it on a <b>long line</b> so your dog can never practice ignoring you, and never call them to end fun or to punish — that poisons the cue.",
+    source:SOURCES.akcRecall,
+    steps:[
+      'Make coming to you the best thing ever: high-value treats, praise, a quick game.',
+      'Start indoors up close; move outdoors on a 15–30 ft long line (never retractable).',
+      'Play recall games: “find me” between rooms, and “hot potato” calling between two people.',
+      'Never call to end play, crate, or scold — only ever good things follow the word.',
+      'Re-prove it fresh in each new place before trusting it around distraction.'
+    ],
+    milestone:'Comes on the first call from 15+ ft on a long line with a mild distraction.'
+  },
+  {
+    id:'settle', skill:'settle', icon:'🦩', title:'Settle & “place”',
+    focus:'An off-switch for busy moments',
+    score(d){ if (has(d.challenges,'hyper')) return 78; if (has(d.goals,'impulse')) return 62; if (has(d.goals,'manners')) return 50; return null; },
+    why:"A dog with a trained <b>off-switch</b> can relax on a mat while you eat, work, or have guests — the antidote to a pup who’s always “on.”",
+    source:SOURCES.purina,
+    steps:[
+      'Pick a mat or bed as the “place.” Reward any calm on it — a sit, a down, a sigh.',
+      'Drop treats between the paws for lying quietly; slowly stretch out the time.',
+      'Practice near mild activity (kitchen, TV) so calm generalizes to real life.',
+      'Throughout the day, quietly reward the calm you want to see more of.'
+    ],
+    milestone:'Settles on a mat for a few minutes near normal household activity.'
+  },
+  {
+    id:'alone', skill:'alone', icon:'🚪', title:'Independence & alone-time',
+    focus:'Prevent separation distress before it starts',
+    score(d){ if (has(d.challenges,'destructive_alone')) return 86; if (has(d.goals,'alone')) return 80; return null; },
+    why:"Being calmly alone is a skill you build gradually. The rule: <b>always return before distress starts</b>, so alone-time never gets a chance to feel scary.",
+    source:SOURCES.aspcaSep,
+    steps:[
+      'Practice real absences starting at ~30 seconds; return before any distress and build up over weeks.',
+      'Give a special chew or stuffed toy that appears only when you leave and vanishes when you return.',
+      'Desensitize departure cues — pick up keys/shoes without leaving until they’re boring.',
+      'Keep hellos and goodbyes calm and low-key.',
+      'Let your pup nap alone in another room while you’re home, to practice independence.'
+    ],
+    milestone:'Stays relaxed and quiet when left alone for progressively longer periods.'
+  },
+  {
+    id:'enrichment', skill:null, icon:'🧩', title:'Mental enrichment & brain games',
+    focus:'Tire the brain, not just the legs',
+    score(d){ if (has(d.goals,'enrichment')) return 74; if (has(d.challenges,'chewing')||has(d.challenges,'hyper')||has(d.challenges,'barking')) return 68; return 40; },
+    why:"A tired brain is a well-behaved dog. Just 10–15 minutes of training or sniffing can tire a dog more than a long walk — and it drains the boredom that fuels chewing and barking.",
+    source:SOURCES.purina,
+    steps:[
+      'Feed some meals from puzzle toys or a snuffle mat instead of a bowl.',
+      'Scatter-feed kibble in the grass for a natural “sniff hunt.”',
+      'Do short trick-training sessions — new tricks build new neural pathways.',
+      'Rotate toys so “old” toys feel new again.'
+    ],
+    milestone:'Has a daily mental outlet; less boredom-driven chewing or barking.'
+  },
+  {
+    id:'adolescent', skill:null, icon:'🎟️', title:'Surviving adolescence',
+    focus:'Manage the teenage brain remodel',
+    score(d){ return ageWeeks(d) >= 27 ? 95 : null; },
+    why:"During adolescence the brain’s impulse-control wiring is literally rebuilding, so trained cues get harder to retrieve under excitement. The commands aren’t lost — <b>manage, lower your criteria, and out-reward the distractions</b> until maturity catches up (usually 18–24 months).",
+    source:SOURCES.cornell,
+    steps:[
+      'Expect regression in recall and leash manners — treat it as brain development, not defiance.',
+      'Go back to basics in easy, low-distraction settings and pay with high-value rewards.',
+      'Manage to prevent bad habits: long lines, baby gates, and a leash outside secure areas.',
+      'Choose consistency over intensity — short daily reps beat occasional marathons.',
+      'Ride out “secondary fear periods” calmly — don’t flood, don’t coddle; stay upbeat and let them investigate.'
+    ],
+    milestone:'Basics hold up again in mild distraction; management prevents backsliding.'
+  }
+];
+
+/* ============================================================
+   State
+   ============================================================ */
+let state = { dogs:[], activeId:null };
+let storageNote = Store.mode === 'device' ? '' : (Store.mode === 'account' ? '' : 'Progress is kept for this session only.');
+
+function uid(){ return (crypto && crypto.randomUUID) ? crypto.randomUUID() : 'd'+Date.now()+Math.random().toString(16).slice(2); }
+function activeDog(){ return state.dogs.find(d => d.id === state.activeId) || null; }
+
+async function save(){
+  const ok = await Store.set(DATA_KEY, JSON.stringify(state));
+  flashStatus(ok ? 'Saved' : null);
+}
+let statusTimer;
+function flashStatus(msg){
+  const el = document.getElementById('saveStatusEl'); if (!el) return;
+  el.textContent = msg || storageNote;
+  if (msg){ clearTimeout(statusTimer); statusTimer = setTimeout(()=>{ el.textContent = storageNote; }, 1600); }
+}
+
+/* ============================================================
+   Plan builder
+   ============================================================ */
+function buildPlan(dog){
+  const active = [], mastered = [];
+  MODULES.forEach(m => {
+    const s = m.score(dog);
+    if (s == null) return;
+    const entry = { m, score:s };
+    if (m.skill && has(dog.known, m.skill)) mastered.push(entry); else active.push(entry);
+  });
+  active.sort((a,b)=> b.score - a.score);
+  mastered.sort((a,b)=> b.score - a.score);
+  return { active, mastered };
+}
+function progKey(dog, mId, i){ return mId+'::'+i; }
+function moduleProgress(dog, m){
+  const total = m.steps.length + 1; // +1 milestone
+  let done = 0;
+  for (let i=0;i<m.steps.length;i++) if (dog.progress[progKey(dog,m.id,i)]) done++;
+  if (dog.progress[progKey(dog,m.id,'ms')]) done++;
+  return { done, total };
+}
+function overallProgress(dog, plan){
+  let done=0,total=0;
+  plan.active.forEach(({m})=>{ const p=moduleProgress(dog,m); done+=p.done; total+=p.total; });
+  return { done, total, pct: total ? Math.round(done/total*100) : 0 };
+}
+
+/* ============================================================
+   Rendering
+   ============================================================ */
+function el(tag, cls, html){ const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; }
+
+function renderTabs(){
+  const bar = document.getElementById('dogtabs'); bar.innerHTML='';
+  state.dogs.forEach(d => {
+    const t = el('button','dogtab'+(d.id===state.activeId?' active':''));
+    t.innerHTML = `<span class="dot"></span>${escapeHtml(d.name||'Unnamed')} · ${ageLabel(d)}`;
+    t.onclick = ()=>{ state.activeId=d.id; save(); renderTabs(); renderApp(); window.scrollTo({top:0,behavior:'smooth'}); };
+    bar.appendChild(t);
+  });
+  const add = el('button','dogtab add', state.dogs.length ? '+ Add dog' : '+ Add your first dog');
+  add.onclick = ()=> renderForm(null);
+  bar.appendChild(add);
+}
+
+function renderApp(){
+  const app = document.getElementById('app'); app.innerHTML='';
+  const dog = activeDog();
+  if (!dog){
+    if (state.dogs.length === 0){
+      const e = el('div','empty');
+      e.innerHTML = `<div style="font-size:44px">🐶</div><h2>Let’s build your first plan</h2>
+        <p style="max-width:44ch;margin:0 auto 20px">Tell me about your dog — their age, what they can already do, and what you’re working on. You’ll get a tailored, source-backed plan in seconds.</p>`;
+      const b = el('button','btn primary','Add your first dog'); b.onclick=()=>renderForm(null);
+      e.appendChild(b); app.appendChild(e);
+    } else { state.activeId = state.dogs[0].id; renderApp(); }
+    return;
+  }
+  renderDogView(dog, app);
+}
+
+function renderDogView(dog, app){
+  const w = ageWeeks(dog);
+  const stage = getStage(w);
+  const plan = buildPlan(dog);
+
+  // --- Stage briefing ---
+  const brief = el('div','briefing');
+  brief.innerHTML = `
+    <div class="stage-eyebrow">${stage.eyebrow}</div>
+    <h2>${escapeHtml(dog.name)}${dog.breed?` · <span style="font-weight:400;color:var(--ink-soft);font-size:0.7em">${escapeHtml(dog.breed)}</span>`:''}</h2>
+    <div class="stage-tag">${ageLabel(dog)} old · stage: ${stage.tag}</div>
+    <p class="lede">${stage.lede}</p>
+    <div class="brief-cols">
+      <div class="brief-block"><div class="bh">What’s happening now</div><ul>${stage.happening.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+      <div class="brief-block"><div class="bh">This stage’s priorities</div><ul>${stage.priorities.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+    </div>
+    <div class="caution">⚠️ ${stage.caution}</div>`;
+  app.appendChild(brief);
+
+  // --- Overall progress ---
+  const ov = overallProgress(dog, plan);
+  const overall = el('div','overall');
+  overall.innerHTML = `
+    <svg class="paw" viewBox="0 0 64 64"><ellipse cx="32" cy="42" rx="17" ry="14" fill="#C1912E"/><ellipse cx="14" cy="24" rx="7" ry="9" fill="#C1912E"/><ellipse cx="50" cy="24" rx="7" ry="9" fill="#C1912E"/><ellipse cx="24" cy="12" rx="6" ry="8" fill="#C1912E"/><ellipse cx="40" cy="12" rx="6" ry="8" fill="#C1912E"/></svg>
+    <div class="overall-text"><div class="label">Plan progress</div><div class="bar-track"><div class="bar-fill" style="width:${ov.pct}%"></div></div></div>
+    <div class="overall-num">${ov.pct}%</div>`;
+  app.appendChild(overall);
+  const statusEl = el('div','save-status'); statusEl.id='saveStatusEl'; statusEl.textContent=storageNote;
+  app.appendChild(statusEl);
+
+  // --- Active plan ---
+  app.appendChild(el('div','plan-heading', `${dog.name}’s plan · ${plan.active.length} focus areas`));
+  plan.active.forEach(({m,score}, idx) => app.appendChild(renderModule(dog, m, score, idx===0, false)));
+
+  // --- Mastered / maintenance ---
+  if (plan.mastered.length){
+    app.appendChild(el('div','plan-heading', `Already got it · maintain`));
+    plan.mastered.forEach(({m,score}) => app.appendChild(renderModule(dog, m, score, false, true)));
+  }
+
+  // --- Profile actions ---
+  const actions = el('div','profile-actions');
+  const edit = el('button','btn','Edit '+escapeHtml(dog.name)+'’s profile'); edit.onclick=()=>renderForm(dog);
+  const addAnother = el('button','btn ghost','+ Add another dog'); addAnother.onclick=()=>renderForm(null);
+  const del = el('button','btn ghost danger','Remove '+escapeHtml(dog.name)); del.onclick=()=>removeDog(dog);
+  actions.appendChild(edit); actions.appendChild(addAnother); actions.appendChild(del);
+  app.appendChild(actions);
+}
+
+function renderModule(dog, m, score, openFirst, mastered){
+  const p = moduleProgress(dog, m);
+  const complete = p.done === p.total;
+  const card = el('div','module'+(mastered?' mastered':'')+((openFirst&&!mastered)?' open':''));
+
+  let badge='';
+  if (mastered) badge = `<span class="mod-badge badge-done">✓ Known</span>`;
+  else if (score>=95) badge = `<span class="mod-badge badge-time">Time-sensitive</span>`;
+  else if (score>=85) badge = `<span class="mod-badge badge-priority">Priority</span>`;
+
+  const head = el('div','mod-head');
+  head.innerHTML = `
+    <div class="mod-icon">${m.icon}</div>
+    <div class="mod-title-block"><div class="mod-title">${m.title}</div><div class="mod-focus">${m.focus}</div></div>
+    ${badge}
+    <div class="mod-mini">${p.done}/${p.total}</div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>`;
+  head.onclick = ()=> card.classList.toggle('open');
+  card.appendChild(head);
+
+  const body = el('div','mod-body');
+  const inner = el('div','mod-inner');
+  const whyText = typeof m.why === 'function' ? m.why(dog) : m.why;
+  inner.appendChild(el('div','why', `${whyText}<span class="src">📖 <a href="${m.source.url}" target="_blank" rel="noopener">${escapeHtml(m.source.name)}</a></span>`));
+
+  inner.appendChild(el('div','section-label','Step by step'));
+  const ul = el('ul','tasklist');
+  m.steps.forEach((text,i)=> ul.appendChild(taskItem(dog, m, i, text)));
+  inner.appendChild(ul);
+
+  const ms = el('div','milestone');
+  ms.appendChild(el('div','ms-label','🏁 You’ve got it when'));
+  ms.appendChild(taskItem(dog, m, 'ms', m.milestone));
+  inner.appendChild(ms);
+
+  body.appendChild(inner); card.appendChild(body);
+  return card;
+}
+
+function taskItem(dog, m, i, text){
+  const key = progKey(dog, m.id, i);
+  const label = el('label','task');
+  const input = document.createElement('input'); input.type='checkbox'; input.checked=!!dog.progress[key];
+  input.onchange = ()=>{ if(input.checked) dog.progress[key]=true; else delete dog.progress[key]; save(); refreshCounts(); };
+  const box = el('div','box','<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>');
+  const span = el('span','task-text'); span.textContent=text;
+  label.appendChild(input); label.appendChild(box); label.appendChild(span);
+  return label;
+}
+
+// Lightweight refresh of counters/progress without collapsing open cards
+function refreshCounts(){
+  const dog = activeDog(); if(!dog) return;
+  const plan = buildPlan(dog);
+  const ov = overallProgress(dog, plan);
+  const bar = document.querySelector('.overall .bar-fill'); if(bar) bar.style.width = ov.pct+'%';
+  const num = document.querySelector('.overall-num'); if(num) num.textContent = ov.pct+'%';
+  document.querySelectorAll('.module').forEach((card, idx)=>{
+    // recompute each visible module's mini count by re-reading its checkboxes
+    const checks = card.querySelectorAll('.mod-inner input[type=checkbox]');
+    let done=0; checks.forEach(c=>{ if(c.checked) done++; });
+    const mini = card.querySelector('.mod-mini'); if(mini) mini.textContent = done+'/'+checks.length;
+  });
+  renderTabs();
+}
+
+/* ============================================================
+   Onboarding / edit form
+   ============================================================ */
+function renderForm(existing){
+  const app = document.getElementById('app'); app.innerHTML='';
+  document.getElementById('dogtabs') && renderTabs();
+  const d = existing || { id:uid(), name:'', breed:'', ageValue:'', ageUnit:'weeks', known:[], goals:[], challenges:[], progress:{} };
+  const draft = { name:d.name, breed:d.breed, ageValue:d.ageValue, ageUnit:d.ageUnit,
+                  known:[...d.known], goals:[...d.goals], challenges:[...d.challenges] };
+
+  const intro = el('div','form-intro');
+  intro.innerHTML = `<h2>${existing?'Edit '+escapeHtml(d.name||'dog'):'New dog'}</h2>
+    <p>Answers shape the plan — age sets the developmental stage, “already knows” skips what’s mastered, and goals &amp; challenges decide what rises to the top.</p>`;
+  app.appendChild(intro);
+
+  // Basics
+  const basics = el('div','fieldset');
+  basics.innerHTML = `
+    <span class="field-label">The basics</span>
+    <div class="row" style="margin-bottom:12px">
+      <div><label class="visually-hidden" for="f-name">Name</label><input id="f-name" type="text" placeholder="Name (e.g. Biscuit)" maxlength="24" value="${escapeAttr(draft.name)}"></div>
+      <div><label class="visually-hidden" for="f-breed">Breed</label><input id="f-breed" type="text" placeholder="Breed (optional)" maxlength="40" value="${escapeAttr(draft.breed)}"></div>
+    </div>
+    <span class="field-label" style="color:var(--ink-soft)">Age</span>
+    <div class="field-help">This sets the developmental stage and time-sensitive priorities.</div>
+    <div class="row">
+      <div style="max-width:120px"><label class="visually-hidden" for="f-age">Age value</label><input id="f-age" type="number" min="0" step="1" placeholder="12" value="${escapeAttr(String(draft.ageValue))}"></div>
+      <div style="max-width:150px"><label class="visually-hidden" for="f-unit">Age unit</label>
+        <select id="f-unit">
+          <option value="weeks"${draft.ageUnit==='weeks'?' selected':''}>weeks</option>
+          <option value="months"${draft.ageUnit==='months'?' selected':''}>months</option>
+          <option value="years"${draft.ageUnit==='years'?' selected':''}>years</option>
+        </select>
+      </div>
+    </div>`;
+  app.appendChild(basics);
+
+  app.appendChild(chipFieldset('What can they already do?', 'We’ll mark these as “maintain” instead of teaching them from scratch.', SKILLS, draft.known));
+  app.appendChild(chipFieldset('What are you working toward?', 'Pick as many as you like — these rise to the top of the plan.', GOALS, draft.goals));
+  app.appendChild(chipFieldset('Any challenges right now?', 'Optional. Helps prioritize the trickiest stuff first.', CHALLENGES, draft.challenges));
+
+  const actions = el('div','form-actions');
+  const saveBtn = el('button','btn primary', existing?'Save changes':'Create plan');
+  saveBtn.onclick = ()=>{
+    const name = document.getElementById('f-name').value.trim();
+    const ageValue = document.getElementById('f-age').value;
+    if (!name){ alert('Please give your dog a name.'); return; }
+    if (ageValue===''|| Number(ageValue)<0){ alert('Please enter your dog’s age.'); return; }
+    d.name=name; d.breed=document.getElementById('f-breed').value.trim();
+    d.ageValue=Number(ageValue); d.ageUnit=document.getElementById('f-unit').value;
+    d.known=draft.known; d.goals=draft.goals; d.challenges=draft.challenges;
+    if (!d.progress) d.progress={};
+    if (!existing) state.dogs.push(d);
+    state.activeId = d.id;
+    save(); renderTabs(); renderApp(); window.scrollTo({top:0,behavior:'smooth'});
+  };
+  const cancel = el('button','btn ghost','Cancel');
+  cancel.onclick = ()=>{ if(!existing && state.dogs.length===0){ renderApp(); } else { state.activeId = existing?existing.id:(state.dogs[0]&&state.dogs[0].id); renderApp(); } };
+  actions.appendChild(saveBtn); actions.appendChild(cancel);
+  app.appendChild(actions);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function chipFieldset(title, help, list, selectedArr){
+  const fs = el('div','fieldset');
+  fs.appendChild(el('span','field-label',title));
+  fs.appendChild(el('div','field-help',help));
+  const chips = el('div','chips');
+  list.forEach(([id,label])=>{
+    const c = el('button','chip'+(selectedArr.includes(id)?' on':''));
+    c.type='button'; c.textContent=label; c.setAttribute('aria-pressed', selectedArr.includes(id));
+    c.onclick=()=>{ const i=selectedArr.indexOf(id); if(i>=0)selectedArr.splice(i,1); else selectedArr.push(id);
+      c.classList.toggle('on'); c.setAttribute('aria-pressed', selectedArr.includes(id)); };
+    chips.appendChild(c);
+  });
+  fs.appendChild(chips);
+  return fs;
+}
+
+function removeDog(dog){
+  if (!confirm(`Remove ${dog.name} and their progress? This can’t be undone.`)) return;
+  state.dogs = state.dogs.filter(x=>x.id!==dog.id);
+  state.activeId = state.dogs[0] ? state.dogs[0].id : null;
+  save(); renderTabs(); renderApp(); window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ============================================================
+   Utilities + boot
+   ============================================================ */
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s); }
+
+function renderSources(){
+  const ul = document.getElementById('srcList');
+  Object.values(SOURCES).forEach(s=>{ const li=document.createElement('li'); li.innerHTML=`<a href="${s.url}" target="_blank" rel="noopener">${escapeHtml(s.name)}</a>`; ul.appendChild(li); });
+}
+
+async function boot(){
+  renderSources();
+  try {
+    const raw = await Store.get(DATA_KEY);
+    if (raw){ const parsed = JSON.parse(raw); if (parsed && Array.isArray(parsed.dogs)){ state = parsed; state.dogs.forEach(d=>{ if(!d.progress)d.progress={}; if(!d.known)d.known=[]; if(!d.goals)d.goals=[]; if(!d.challenges)d.challenges=[]; }); } }
+  } catch(e){ /* first run or unreadable — start fresh */ }
+  if (state.dogs.length && !activeDog()) state.activeId = state.dogs[0].id;
+  renderTabs(); renderApp();
+}
+boot();
+</script>
+</body>
+</html>
