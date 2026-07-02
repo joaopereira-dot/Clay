@@ -5,6 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Field Journal — Personalized Puppy Training</title>
 <meta name="description" content="A personalized, source-backed dog training plan. Track multiple dogs, answer a few questions, and get guidance tailored to each dog's age and goals.">
+<!--
+  Field Journal — Personalized Puppy Training  (v2)
+  ------------------------------------------------------------------
+  Single-file web app. No build step or dependencies are needed to run
+  it: open this file in any browser or host it statically.
+
+  This is the CANONICAL SOURCE. It links web fonts from the Google
+  Fonts CDN, which is ideal for a normal web host / GitHub Pages.
+
+  A second, self-contained build (fonts inlined as data URIs) lives in
+  dist/artifact.html, for contexts where external CDNs are blocked
+  (e.g. a Claude Artifact's strict CSP, or fully offline). Regenerate
+  it with `python3 build.py` — do not hand-edit dist/.
+
+  Persistence: see the Store module below. It transparently uses the
+  Claude Artifact storage API (account-synced) when present, otherwise
+  localStorage (per-device), otherwise an in-memory session fallback.
+
+  See README.md for full documentation.
+-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
