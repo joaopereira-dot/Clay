@@ -259,7 +259,10 @@
   .profile-actions{ display:flex; gap:10px; flex-wrap:wrap; margin:26px 0 8px; }
 
   /* ---------- Footer ---------- */
-  footer{ margin-top:40px; padding:22px 0 0; border-top:1px solid var(--line); font-size:13px; color:var(--ink-soft); line-height:1.65; }
+  footer{ border-top:1px solid var(--line); font-size:13px; color:var(--ink-soft); line-height:1.65; }
+  /* footer also carries .wrap; that rule's margin/padding out-specifies a bare `footer{}`,
+     so set the top spacing here with matching specificity or it collapses to 0. */
+  footer.wrap{ margin-top:44px; padding-top:24px; }
   footer h3{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--brick); margin:0 0 10px; }
   .src-list{ display:grid; grid-template-columns:1fr 1fr; gap:4px 20px; margin:0 0 18px; padding:0; list-style:none; }
   @media(max-width:560px){ .src-list{ grid-template-columns:1fr; } }
