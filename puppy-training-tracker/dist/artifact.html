@@ -102,9 +102,9 @@
   .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
   .row > div{ flex:1; min-width:140px; }
   input[type=text], input[type=number], input[type=date], select{
-    width:100%; font-family:'Inter', sans-serif; font-size:15px;
+    width:100%; font-family:'Inter', sans-serif; font-size:16px;  /* 16px avoids iOS focus-zoom */
     background:var(--paper); border:1px solid var(--line); border-radius:9px;
-    padding:11px 12px; color:var(--ink);
+    padding:11px 12px; color:var(--ink); line-height:1.2;
   }
   input:focus, select:focus{ outline:2px solid var(--gold-deep); outline-offset:1px; border-color:var(--gold-deep); }
   .chips{ display:flex; flex-wrap:wrap; gap:8px; }
@@ -283,9 +283,10 @@
   .big-code-input{ font-family:'IBM Plex Mono',monospace !important; font-size:16px !important; text-align:center; }
 
   /* ---------- Birthdate helper ---------- */
-  .dob-helper{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:11px; font-size:12.5px; color:var(--ink-soft); }
+  .dob-helper{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-top:12px; font-size:12.5px; color:var(--ink-soft); }
+  .dob-helper > span{ flex-basis:100%; }              /* keep the label on its own line so the controls line up below */
   .dob-helper input, .dob-helper select{ width:auto; }
-  .dob-helper input[type=number]{ max-width:76px; }
+  .dob-helper input[type=number]{ width:72px; }
   .age-preview{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--gold-deep); margin-top:10px; min-height:15px; }
 
   /* ---------- Stage-advance nudge ---------- */
@@ -318,6 +319,20 @@
   .ti-step{ color:var(--paper); }
   .today-item input:checked ~ .ti-text .ti-step{ text-decoration:line-through; opacity:0.6; }
   .today-empty{ font-size:13.5px; color:rgba(236,226,204,0.92); }
+
+  /* ---------- Small-screen refinements (phones) ---------- */
+  @media (max-width:480px){
+    /* The priority badge steals width and forces module titles to wrap awkwardly;
+       hide it here — priority is already conveyed by the plan's top-to-bottom order. */
+    .mod-badge{ display:none; }
+    .mod-head{ gap:11px; padding:14px 15px; }
+    .mod-inner, .week-body-inner{ padding-left:15px; padding-right:15px; }
+    /* Stack the name / breed inputs so their placeholders don't truncate. */
+    .fieldset .row{ flex-direction:column; align-items:stretch; }
+    .fieldset .row > div{ min-width:0; }
+    .wrap{ padding:0 18px; }
+    .eyebrow{ letter-spacing:0.1em; }
+  }
 
 </style>
 <div class="noise"></div>
