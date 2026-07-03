@@ -24,8 +24,14 @@ their own device.
 
 - **Multiple dogs.** Each dog is a tab; add, switch, edit, or remove any of them.
   Every dog keeps its own profile and progress.
-- **Onboarding questionnaire.** Name, breed, **age**, the skills they **already
-  know**, your **goals**, and any current **challenges**.
+- **Onboarding questionnaire.** Name, breed, **date of birth** (or an
+  approximate age), the skills they **already know**, your **goals**, and any
+  current **challenges**.
+- **Age that advances on its own.** Because age is derived from a birth date, the
+  developmental stage and plan **update automatically as your dog grows** — and
+  when a dog crosses into a new stage, a one-time banner tells you what changes.
+- **"Today's focus."** A short card at the top surfaces the 2–3 highest-priority
+  next actions so you're not staring at the whole curriculum every day.
 - **A plan tailored to the answers:**
   - **Age → developmental stage.** The app derives a life-stage briefing (what's
     happening in the dog's brain/body, this stage's priorities, and a safety
@@ -45,7 +51,9 @@ their own device.
 
 ## How the personalization works
 
-Age is normalized to weeks and mapped to a stage:
+Each dog stores a **birth date**; the current age is computed live (so a plan
+created at 10 weeks becomes an adolescent plan months later with no edits). Age
+in weeks maps to a stage:
 
 | Age | Stage | Emphasis |
 | --- | --- | --- |
@@ -59,7 +67,8 @@ Age is normalized to weeks and mapped to a stage:
 Each module exposes a `score(dog)` function that returns a priority number
 (or `null` to hide it) based on age, goals, challenges, and known skills. The
 plan is the applicable modules sorted by score; modules matching an
-already-known skill move to the maintenance section.
+already-known skill move to the maintenance section. **Today's focus** simply
+takes the next unfinished step from each of the top-scoring modules.
 
 ## Project structure
 

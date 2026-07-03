@@ -101,7 +101,7 @@
   .field-help{ font-size:12.5px; color:var(--ink-soft); margin:2px 0 12px; }
   .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
   .row > div{ flex:1; min-width:140px; }
-  input[type=text], input[type=number], select{
+  input[type=text], input[type=number], input[type=date], select{
     width:100%; font-family:'Inter', sans-serif; font-size:15px;
     background:var(--paper); border:1px solid var(--line); border-radius:9px;
     padding:11px 12px; color:var(--ink);
@@ -282,6 +282,43 @@
   .modal-err{ color:var(--brick); font-size:13px; margin-top:10px; min-height:16px; }
   .big-code-input{ font-family:'IBM Plex Mono',monospace !important; font-size:16px !important; text-align:center; }
 
+  /* ---------- Birthdate helper ---------- */
+  .dob-helper{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:11px; font-size:12.5px; color:var(--ink-soft); }
+  .dob-helper input, .dob-helper select{ width:auto; }
+  .dob-helper input[type=number]{ max-width:76px; }
+  .age-preview{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--gold-deep); margin-top:10px; min-height:15px; }
+
+  /* ---------- Stage-advance nudge ---------- */
+  .stage-nudge{ position:relative; display:flex; gap:12px; align-items:flex-start;
+    background:linear-gradient(180deg, rgba(193,145,46,0.16), rgba(193,145,46,0.05));
+    border:1px solid var(--gold); border-radius:var(--radius); padding:14px 40px 14px 16px; margin:24px 0 0; }
+  .stage-nudge .sn-emoji{ font-size:22px; line-height:1.1; }
+  .stage-nudge .sn-text{ font-size:13.5px; color:var(--ink); }
+  .stage-nudge .sn-text b{ color:var(--forest-deep); }
+  .sn-close{ position:absolute; top:8px; right:10px; background:none; border:none; color:var(--ink-soft);
+    cursor:pointer; font-size:15px; line-height:1; padding:4px; }
+  .sn-close:hover{ color:var(--brick); }
+
+  /* ---------- Today's focus ---------- */
+  .today{ background:var(--forest); color:var(--paper); border-radius:var(--radius); padding:18px 20px; margin:18px 0 8px; }
+  .today-head{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .today-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); }
+  .today-sub{ font-size:12.5px; color:rgba(236,226,204,0.82); }
+  .today-list{ display:flex; flex-direction:column; }
+  .today-item{ display:flex; align-items:flex-start; gap:11px; padding:9px 0; cursor:pointer; font-size:14.5px; line-height:1.4;
+    border-top:1px solid rgba(236,226,204,0.14); -webkit-tap-highlight-color:transparent; }
+  .today-item:first-child{ border-top:none; }
+  .today-item input{ position:absolute; opacity:0; width:0; height:0; }
+  .today-item .box{ border-color:var(--gold); margin-top:1px; }
+  .today-item input:checked + .box{ background:var(--gold); border-color:var(--gold); }
+  .today-item input:checked + .box svg{ opacity:1; }
+  .today-item input:focus-visible + .box{ outline:2px solid var(--paper); outline-offset:2px; }
+  .ti-text{ display:flex; flex-direction:column; gap:1px; }
+  .ti-mod{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase; color:var(--gold); }
+  .ti-step{ color:var(--paper); }
+  .today-item input:checked ~ .ti-text .ti-step{ text-decoration:line-through; opacity:0.6; }
+  .today-empty{ font-size:13.5px; color:rgba(236,226,204,0.92); }
+
 </style>
 <div class="noise"></div>
 
@@ -380,8 +417,7 @@ const Sync = (() => {
   const col = () => db.collection(COLLECTION);
   const ts  = () => firebase.firestore.FieldValue.serverTimestamp();
   function serializeProfile(dog){
-    return { name:dog.name||'', breed:dog.breed||'',
-      ageValue:Number(dog.ageValue)||0, ageUnit:dog.ageUnit||'weeks',
+    return { name:dog.name||'', breed:dog.breed||'', birthDate:dog.birthDate||'',
       known:dog.known||[], goals:dog.goals||[], challenges:dog.challenges||[], updatedAt:ts() };
   }
 
@@ -495,17 +531,34 @@ const SOURCES = {
 /* ============================================================
    Life-stage briefings (driven by age in weeks)
    ============================================================ */
-function ageWeeks(dog){
-  const v = Number(dog.ageValue)||0;
-  if (dog.ageUnit === 'weeks') return v;
-  if (dog.ageUnit === 'months') return Math.round(v*4.345);
-  if (dog.ageUnit === 'years') return Math.round(v*52.14);
-  return v;
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function parseDateLocal(iso){ if(!iso) return null; const p=String(iso).split('-').map(Number); if(p.length<3||!p[0]) return null; return new Date(p[0], p[1]-1, p[2]); }
+// Convert an approximate age (typed by the user) into a birth date.
+function birthFromAge(v, unit){
+  v = Number(v)||0; const d = new Date();
+  if (unit==='months') d.setMonth(d.getMonth()-v);
+  else if (unit==='years') d.setFullYear(d.getFullYear()-v);
+  else d.setDate(d.getDate()-v*7);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+function ageDays(dog){
+  const b = parseDateLocal(dog.birthDate);
+  if (b) return Math.max(0, Math.floor((Date.now()-b.getTime())/86400000));
+  const v = Number(dog.ageValue)||0; // legacy fallback
+  if (dog.ageUnit==='months') return Math.round(v*30.44);
+  if (dog.ageUnit==='years') return Math.round(v*365.25);
+  return v*7;
+}
+function ageWeeks(dog){ return Math.floor(ageDays(dog)/7); }
 function ageLabel(dog){
-  const v = Number(dog.ageValue)||0;
-  const u = dog.ageUnit || 'weeks';
-  return v + ' ' + (v===1 ? u.slice(0,-1) : u);
+  const days = ageDays(dog);
+  const weeks = Math.floor(days/7);
+  if (days < 98) return weeks + (weeks===1?' week':' weeks');   // under ~14 weeks → count weeks
+  const months = Math.floor(days/30.44);
+  if (months < 24) return months + ' months';
+  const years = Math.floor(days/365.25);
+  const remM = Math.round((days - years*365.25)/30.44);
+  return remM>0 ? `${years}y ${remM}m` : `${years} year${years>1?'s':''}`;
 }
 function getStage(w){
   if (w < 12) return {
@@ -772,7 +825,7 @@ const MODULES = [
 /* ============================================================
    State
    ============================================================ */
-let state = { dogs:[], activeId:null };
+let state = { dogs:[], activeId:null, stageSeen:{} };
 let storageNote = Store.mode === 'device' ? '' : (Store.mode === 'account' ? '' : 'Progress is kept for this session only.');
 
 function uid(){ return (crypto && crypto.randomUUID) ? crypto.randomUUID() : 'd'+Date.now()+Math.random().toString(16).slice(2); }
@@ -868,6 +921,12 @@ function renderDogView(dog, app){
   const stage = getStage(w);
   const plan = buildPlan(dog);
 
+  // --- Stage-advance nudge (age is derived from birth date, so the stage can change over time) ---
+  if (!state.stageSeen) state.stageSeen = {};
+  const prevSeen = state.stageSeen[dog.id];
+  if (prevSeen && prevSeen !== stage.key) app.appendChild(renderStageNudge(dog, stage));
+  state.stageSeen[dog.id] = stage.key; saveLocal();
+
   // --- Stage briefing ---
   const brief = el('div','briefing');
   brief.innerHTML = `
@@ -881,6 +940,9 @@ function renderDogView(dog, app){
     </div>
     <div class="caution">⚠️ ${stage.caution}</div>`;
   app.appendChild(brief);
+
+  // --- Today's focus ---
+  app.appendChild(renderToday(dog, plan));
 
   // --- Overall progress ---
   const ov = overallProgress(dog, plan);
@@ -958,15 +1020,70 @@ function taskItem(dog, m, i, text){
   const key = progKey(dog, m.id, i);
   const label = el('label','task');
   const input = document.createElement('input'); input.type='checkbox'; input.checked=!!dog.progress[key]; input.dataset.k=key;
-  input.onchange = ()=>{
-    if(input.checked) dog.progress[key]=true; else delete dog.progress[key];
-    save(); refreshCounts();
-    if (dog.shareCode) Sync.pushProgress(dog.shareCode, key, input.checked);
-  };
+  input.onchange = ()=> toggleProgress(dog, key, input.checked);
   const box = el('div','box','<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>');
   const span = el('span','task-text'); span.textContent=text;
   label.appendChild(input); label.appendChild(box); label.appendChild(span);
   return label;
+}
+
+// One place all progress changes flow through (module checkboxes AND Today's focus).
+function toggleProgress(dog, key, value){
+  if (value) dog.progress[key]=true; else delete dog.progress[key];
+  save();
+  if (dog.shareCode) Sync.pushProgress(dog.shareCode, key, value);
+  syncCheckboxes(dog);   // keep the module + Today copies of this item in step
+  refreshCounts();
+}
+
+// --- "Today's focus": a few next actions, drawn from the top-priority modules ---
+function nextItemsForModule(dog, m){
+  const items = [];
+  m.steps.forEach((text,i)=>{ const key=progKey(dog,m.id,i); if(!dog.progress[key]) items.push({key, text, module:m}); });
+  const msKey = progKey(dog,m.id,'ms'); if(!dog.progress[msKey]) items.push({key:msKey, text:'🏁 '+m.milestone, module:m});
+  return items;
+}
+function buildTodayFocus(dog, plan){
+  const buckets = plan.active.map(({m})=> nextItemsForModule(dog,m)).filter(a=>a.length);
+  const picks = []; let i=0;
+  while (picks.length<3 && buckets.some(b=>b.length) && i<60){
+    const b = buckets[i % buckets.length]; if (b && b.length) picks.push(b.shift()); i++;
+  }
+  return picks;
+}
+function renderToday(dog, plan){
+  const picks = buildTodayFocus(dog, plan);
+  const card = el('div','today');
+  if (!picks.length){
+    card.innerHTML = `<div class="today-head"><span class="today-eyebrow">Today’s focus</span></div>
+      <div class="today-empty">🎉 You’ve worked through the priorities for this stage. Keep practicing the milestones, or browse the full plan below.</div>`;
+    return card;
+  }
+  card.innerHTML = `<div class="today-head"><span class="today-eyebrow">Today’s focus</span>
+    <span class="today-sub">${picks.length} quick win${picks.length>1?'s':''} to move ${escapeHtml(dog.name)} forward</span></div>`;
+  const list = el('div','today-list');
+  picks.forEach(it=> list.appendChild(todayItem(dog, it)));
+  card.appendChild(list);
+  return card;
+}
+function todayItem(dog, it){
+  const row = el('label','today-item');
+  const input = document.createElement('input'); input.type='checkbox'; input.dataset.k=it.key; input.checked=!!dog.progress[it.key];
+  input.onchange = ()=> toggleProgress(dog, it.key, input.checked);
+  const box = el('div','box','<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>');
+  const text = el('div','ti-text');
+  text.innerHTML = `<span class="ti-mod">${it.module.icon} ${escapeHtml(it.module.title)}</span><span class="ti-step">${escapeHtml(it.text)}</span>`;
+  row.appendChild(input); row.appendChild(box); row.appendChild(text);
+  return row;
+}
+
+// Congratulatory banner shown once when a dog's age crosses into a new stage.
+function renderStageNudge(dog, stage){
+  const n = el('div','stage-nudge');
+  n.innerHTML = `<div class="sn-emoji">🎉</div><div class="sn-text"><b>${escapeHtml(dog.name)} just entered a new stage: ${stage.eyebrow}.</b> The plan below has updated to match — here’s what changes now.</div>`;
+  const x = el('button','sn-close','✕'); x.setAttribute('aria-label','Dismiss'); x.onclick=()=>n.remove();
+  n.appendChild(x);
+  return n;
 }
 
 // Lightweight refresh of counters/progress without collapsing open cards
@@ -991,8 +1108,8 @@ function refreshCounts(){
 function renderForm(existing){
   const app = document.getElementById('app'); app.innerHTML='';
   document.getElementById('dogtabs') && renderTabs();
-  const d = existing || { id:uid(), name:'', breed:'', ageValue:'', ageUnit:'weeks', known:[], goals:[], challenges:[], progress:{} };
-  const draft = { name:d.name, breed:d.breed, ageValue:d.ageValue, ageUnit:d.ageUnit,
+  const d = existing || { id:uid(), name:'', breed:'', birthDate:'', known:[], goals:[], challenges:[], progress:{} };
+  const draft = { name:d.name, breed:d.breed, birthDate:d.birthDate||'',
                   known:[...d.known], goals:[...d.goals], challenges:[...d.challenges] };
 
   const intro = el('div','form-intro');
@@ -1004,23 +1121,33 @@ function renderForm(existing){
   const basics = el('div','fieldset');
   basics.innerHTML = `
     <span class="field-label">The basics</span>
-    <div class="row" style="margin-bottom:12px">
+    <div class="row" style="margin-bottom:14px">
       <div><label class="visually-hidden" for="f-name">Name</label><input id="f-name" type="text" placeholder="Name (e.g. Biscuit)" maxlength="24" value="${escapeAttr(draft.name)}"></div>
       <div><label class="visually-hidden" for="f-breed">Breed</label><input id="f-breed" type="text" placeholder="Breed (optional)" maxlength="40" value="${escapeAttr(draft.breed)}"></div>
     </div>
-    <span class="field-label" style="color:var(--ink-soft)">Age</span>
-    <div class="field-help">This sets the developmental stage and time-sensitive priorities.</div>
-    <div class="row">
-      <div style="max-width:120px"><label class="visually-hidden" for="f-age">Age value</label><input id="f-age" type="number" min="0" step="1" placeholder="12" value="${escapeAttr(String(draft.ageValue))}"></div>
-      <div style="max-width:150px"><label class="visually-hidden" for="f-unit">Age unit</label>
-        <select id="f-unit">
-          <option value="weeks"${draft.ageUnit==='weeks'?' selected':''}>weeks</option>
-          <option value="months"${draft.ageUnit==='months'?' selected':''}>months</option>
-          <option value="years"${draft.ageUnit==='years'?' selected':''}>years</option>
-        </select>
-      </div>
-    </div>`;
+    <span class="field-label" style="color:var(--ink-soft)">Date of birth</span>
+    <div class="field-help">We use this to keep the plan in step as your dog grows — the developmental stage updates on its own.</div>
+    <input id="f-dob" type="date" max="${todayISO()}" value="${escapeAttr(draft.birthDate)}">
+    <div class="dob-helper">
+      <span>Don’t know it? Approx age:</span>
+      <input id="f-agev" type="number" min="0" step="1" placeholder="10" aria-label="Approximate age value">
+      <label class="visually-hidden" for="f-ageu">Age unit</label>
+      <select id="f-ageu"><option value="weeks">weeks</option><option value="months">months</option><option value="years">years</option></select>
+      <button type="button" id="f-ageset" class="btn">Set date</button>
+    </div>
+    <div id="agePreview" class="age-preview"></div>`;
   app.appendChild(basics);
+  const dobEl = document.getElementById('f-dob');
+  const prevEl = document.getElementById('agePreview');
+  const updatePreview = ()=>{
+    if (dobEl.value){ const t={birthDate:dobEl.value}; prevEl.textContent = 'Current age: '+ageLabel(t)+' · stage: '+getStage(ageWeeks(t)).eyebrow; }
+    else prevEl.textContent = '';
+  };
+  document.getElementById('f-ageset').onclick = ()=>{
+    const v=document.getElementById('f-agev').value; if(v==='') return;
+    dobEl.value = birthFromAge(v, document.getElementById('f-ageu').value); updatePreview();
+  };
+  dobEl.oninput = updatePreview; updatePreview();
 
   app.appendChild(chipFieldset('What can they already do?', 'We’ll mark these as “maintain” instead of teaching them from scratch.', SKILLS, draft.known));
   app.appendChild(chipFieldset('What are you working toward?', 'Pick as many as you like — these rise to the top of the plan.', GOALS, draft.goals));
@@ -1030,15 +1157,19 @@ function renderForm(existing){
   const saveBtn = el('button','btn primary', existing?'Save changes':'Create plan');
   saveBtn.onclick = ()=>{
     const name = document.getElementById('f-name').value.trim();
-    const ageValue = document.getElementById('f-age').value;
+    let dob = document.getElementById('f-dob').value;
+    if (!dob){ const v=document.getElementById('f-agev').value; if(v!=='' && Number(v)>=0) dob = birthFromAge(v, document.getElementById('f-ageu').value); }
     if (!name){ alert('Please give your dog a name.'); return; }
-    if (ageValue===''|| Number(ageValue)<0){ alert('Please enter your dog’s age.'); return; }
+    if (!dob){ alert('Please enter a birthday, or an approximate age.'); return; }
+    if (dob > todayISO()){ alert('That birthday is in the future — please double-check it.'); return; }
     d.name=name; d.breed=document.getElementById('f-breed').value.trim();
-    d.ageValue=Number(ageValue); d.ageUnit=document.getElementById('f-unit').value;
+    d.birthDate=dob; delete d.ageValue; delete d.ageUnit;
     d.known=draft.known; d.goals=draft.goals; d.challenges=draft.challenges;
     if (!d.progress) d.progress={};
     if (!existing) state.dogs.push(d);
     state.activeId = d.id;
+    if (!state.stageSeen) state.stageSeen={};
+    state.stageSeen[d.id] = getStage(ageWeeks(d)).key;   // mark current stage so editing never triggers a false "new stage" nudge
     save(); renderTabs(); renderApp(); window.scrollTo({top:0,behavior:'smooth'});
     if (d.shareCode) Sync.pushProfile(d.shareCode, d);
   };
@@ -1089,12 +1220,11 @@ async function saveLocal(){ try{ await Store.set(DATA_KEY, JSON.stringify(state)
 function applyRemote(code, data){
   const dog = state.dogs.find(d=>d.shareCode===code);
   if (!dog || !data) return;
-  const sig = d => JSON.stringify([d.name,d.breed,d.ageValue,d.ageUnit,d.known,d.goals,d.challenges]);
+  const sig = d => JSON.stringify([d.name,d.breed,d.birthDate,d.known,d.goals,d.challenges]);
   const before = sig(dog);
   dog.name = data.name!=null ? data.name : dog.name;
   dog.breed = data.breed||'';
-  dog.ageValue = data.ageValue!=null ? data.ageValue : dog.ageValue;
-  dog.ageUnit = data.ageUnit||dog.ageUnit;
+  dog.birthDate = data.birthDate || (data.ageValue!=null ? birthFromAge(data.ageValue, data.ageUnit) : dog.birthDate);
   dog.known = data.known||[]; dog.goals = data.goals||[]; dog.challenges = data.challenges||[];
   dog.progress = data.progress||{};
   saveLocal();
@@ -1106,8 +1236,8 @@ function applyRemote(code, data){
   renderTabs();
 }
 function syncCheckboxes(dog){
-  document.querySelectorAll('#app .module .mod-inner input[type=checkbox]').forEach(inp=>{
-    if (inp.dataset.k!=null) inp.checked = !!dog.progress[inp.dataset.k];
+  document.querySelectorAll('#app input[type=checkbox][data-k]').forEach(inp=>{
+    inp.checked = !!dog.progress[inp.dataset.k];
   });
 }
 
@@ -1225,8 +1355,9 @@ function openJoinModal(prefill){
       const data = await Sync.join(code);
       let dog = state.dogs.find(d=>d.shareCode===code);
       if (!dog){ dog = { id:uid(), shareCode:code, progress:{}, known:[], goals:[], challenges:[] }; state.dogs.push(dog); }
-      Object.assign(dog, { name:data.name||'Shared dog', breed:data.breed||'', ageValue:data.ageValue||0,
-        ageUnit:data.ageUnit||'weeks', known:data.known||[], goals:data.goals||[], challenges:data.challenges||[], progress:data.progress||{} });
+      Object.assign(dog, { name:data.name||'Shared dog', breed:data.breed||'',
+        birthDate: data.birthDate || (data.ageValue!=null ? birthFromAge(data.ageValue, data.ageUnit) : (dog.birthDate||todayISO())),
+        known:data.known||[], goals:data.goals||[], challenges:data.challenges||[], progress:data.progress||{} });
       state.activeId = dog.id; await saveLocal();
       closeModal(); renderTabs(); renderApp(); window.scrollTo({top:0,behavior:'smooth'});
     }catch(e){ joinB.textContent='Join'; joinB.disabled=false; err.textContent = humanErr(e); }
@@ -1296,8 +1427,16 @@ async function boot(){
   renderSources();
   try {
     const raw = await Store.get(DATA_KEY);
-    if (raw){ const parsed = JSON.parse(raw); if (parsed && Array.isArray(parsed.dogs)){ state = parsed; state.dogs.forEach(d=>{ if(!d.progress)d.progress={}; if(!d.known)d.known=[]; if(!d.goals)d.goals=[]; if(!d.challenges)d.challenges=[]; }); } }
+    if (raw){ const parsed = JSON.parse(raw); if (parsed && Array.isArray(parsed.dogs)){
+      state = parsed;
+      state.dogs.forEach(d=>{
+        if(!d.progress)d.progress={}; if(!d.known)d.known=[]; if(!d.goals)d.goals=[]; if(!d.challenges)d.challenges=[];
+        // Migrate legacy static age → a birth date, so the stage can advance over time.
+        if(!d.birthDate) d.birthDate = (d.ageValue!==undefined && d.ageValue!=='') ? birthFromAge(d.ageValue, d.ageUnit) : todayISO();
+      });
+    } }
   } catch(e){ /* first run or unreadable — start fresh */ }
+  if (!state.stageSeen) state.stageSeen = {};
   if (state.dogs.length && !activeDog()) state.activeId = state.dogs[0].id;
   renderTabs(); renderApp();
 
