@@ -249,6 +249,39 @@
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
   .visually-hidden{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
 
+  /* ---------- Sharing / live sync ---------- */
+  .share-panel{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; margin:26px 0 4px; }
+  .sp-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .sp-head h3{ font-family:'Fraunces',serif; font-weight:600; font-size:18px; color:var(--forest-deep); margin:0; }
+  .share-panel p{ font-size:13px; color:var(--ink-soft); margin:7px 0 12px; }
+  .sync-badge{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.04em; padding:4px 10px; border-radius:999px; display:inline-flex; align-items:center; gap:6px; }
+  .sync-badge .d{ width:7px; height:7px; border-radius:50%; }
+  .sync-live{ background:rgba(51,70,58,0.13); color:var(--forest-deep); }
+  .sync-live .d{ background:#2f9e44; animation:pulse 2s infinite; }
+  .sync-off{ background:rgba(156,82,56,0.12); color:var(--brick); }
+  .sync-off .d{ background:var(--brick); }
+  @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(47,158,68,0.5);} 70%{box-shadow:0 0 0 6px rgba(47,158,68,0);} 100%{box-shadow:0 0 0 0 rgba(47,158,68,0);} }
+  .code-box{ background:var(--paper); border:1px dashed var(--line); border-radius:9px; padding:10px 12px; margin-bottom:11px; }
+  .code-box code{ font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--forest-deep); word-break:break-all; }
+  .share-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  /* ---------- Modal ---------- */
+  .modal-root{ position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; padding:18px; }
+  .modal-root.open{ display:flex; }
+  .modal-back{ position:absolute; inset:0; background:rgba(34,48,31,0.45); }
+  .modal-card{ position:relative; z-index:1; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:520px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 20px 50px rgba(34,48,31,0.28); }
+  .modal-card h2{ font-family:'Fraunces',serif; font-weight:600; font-size:22px; color:var(--forest-deep); margin:0 0 6px; }
+  .modal-card p{ font-size:13.5px; color:var(--ink-soft); margin:0 0 14px; }
+  .modal-card textarea{ width:100%; min-height:150px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:11px 12px; color:var(--ink); resize:vertical; }
+  .modal-card textarea:focus, .modal-card input:focus{ outline:2px solid var(--gold-deep); outline-offset:1px; }
+  .modal-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  .steps{ font-size:13px; color:var(--ink); margin:0 0 14px; padding-left:20px; }
+  .steps li{ margin-bottom:7px; }
+  .steps a, details.help summary{ color:var(--gold-deep); }
+  details.help summary{ cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:12px; margin-bottom:10px; }
+  .modal-err{ color:var(--brick); font-size:13px; margin-top:10px; min-height:16px; }
+  .big-code-input{ font-family:'IBM Plex Mono',monospace !important; font-size:16px !important; text-align:center; }
+
 </style>
 <div class="noise"></div>
 
@@ -270,6 +303,8 @@
     <b>A note on safety:</b> This plan is general education, not veterinary or professional behavior advice. Vaccination status changes what's safe for public socialization — confirm outdoor/public steps with your vet. For fear, aggression, or severe separation distress, work with a certified trainer or veterinary behaviorist. Progress is saved privately on this device/account and isn't visible to anyone else.
   </div>
 </footer>
+
+<div class="modal-root" id="modalRoot" role="dialog" aria-modal="true"></div>
 
 <script>
 /* ============================================================
@@ -298,6 +333,100 @@ const Store = (() => {
   };
 })();
 const DATA_KEY = 'puppy-tracker-v2';
+
+/* ============================================================
+   Live sharing via Firebase (optional). Lets several people
+   track the SAME dog in real time. The SDK is loaded lazily and
+   only when configured, so the core app stays dependency-free and
+   fully offline. Unavailable inside the Claude Artifact sandbox
+   (external requests are blocked) — the app still works there,
+   just without live sharing.
+   ============================================================ */
+const Sync = (() => {
+  const CFG_KEY = 'puppy-firebase-config';
+  const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const COLLECTION = 'sharedDogs';
+  let db=null, auth=null, ready=false, sdkPromise=null;
+  const listeners = {};              // shareCode -> unsubscribe fn
+  let onRemote = ()=>{}, onStatus = ()=>{};
+
+  function getConfig(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)||'null'); }catch(e){ return null; } }
+  function configured(){ return !!getConfig(); }
+  function saveConfig(cfg){ try{ localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }catch(e){} }
+
+  function loadScript(src){
+    return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.async=true;
+      s.onload=()=>res(); s.onerror=()=>rej(new Error('load-failed')); document.head.appendChild(s); });
+  }
+  function loadSDK(){
+    if (window.firebase && window.firebase.firestore) return Promise.resolve();
+    if (sdkPromise) return sdkPromise;
+    sdkPromise = loadScript(SDK+'firebase-app-compat.js')
+      .then(()=>Promise.all([ loadScript(SDK+'firebase-auth-compat.js'), loadScript(SDK+'firebase-firestore-compat.js') ]))
+      .catch(e=>{ sdkPromise=null; throw e; });
+    return sdkPromise;
+  }
+  async function init(){
+    if (ready) return true;
+    const cfg = getConfig(); if (!cfg) throw new Error('not-configured');
+    await loadSDK();
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    db = firebase.firestore(); auth = firebase.auth();
+    await auth.signInAnonymously();
+    ready = true; onStatus('live');
+    return true;
+  }
+
+  const col = () => db.collection(COLLECTION);
+  const ts  = () => firebase.firestore.FieldValue.serverTimestamp();
+  function serializeProfile(dog){
+    return { name:dog.name||'', breed:dog.breed||'',
+      ageValue:Number(dog.ageValue)||0, ageUnit:dog.ageUnit||'weeks',
+      known:dog.known||[], goals:dog.goals||[], challenges:dog.challenges||[], updatedAt:ts() };
+  }
+
+  async function share(dog){
+    if(!ready) await init();
+    const ref = col().doc();                          // random, unguessable id = the share code
+    await ref.set(Object.assign(serializeProfile(dog), { progress: dog.progress||{} }));
+    listen(ref.id);
+    return ref.id;
+  }
+  async function join(code){
+    if(!ready) await init();
+    const snap = await col().doc(code).get();
+    if(!snap.exists) throw new Error('not-found');
+    listen(code);
+    return snap.data();
+  }
+  function listen(code){
+    if (listeners[code]) return;
+    listeners[code] = col().doc(code).onSnapshot(
+      snap=>{ if (snap.exists && !snap.metadata.hasPendingWrites) onRemote(code, snap.data()); },
+      err=>{ console.warn('sync listen error', err); onStatus('off'); }
+    );
+  }
+  function stop(code){ if(listeners[code]){ try{ listeners[code](); }catch(e){} delete listeners[code]; } }
+
+  async function pushProgress(code, key, value){
+    if(!ready) return;
+    try{
+      const fp = new firebase.firestore.FieldPath('progress', key);
+      if (value) await col().doc(code).update(fp, true, 'updatedAt', ts());
+      else       await col().doc(code).update(fp, firebase.firestore.FieldValue.delete(), 'updatedAt', ts());
+      onStatus('live');
+    }catch(e){ console.warn('pushProgress', e); onStatus('off'); }
+  }
+  async function pushProfile(code, dog){
+    if(!ready) return;
+    try{ await col().doc(code).set(serializeProfile(dog), {merge:true}); onStatus('live'); }
+    catch(e){ console.warn('pushProfile', e); onStatus('off'); }
+  }
+
+  return { getConfig, configured, saveConfig, init, share, join, listen, stop, pushProgress, pushProfile,
+           isReady:()=>ready,
+           setHandlers(remote,status){ if(remote)onRemote=remote; if(status)onStatus=status; } };
+})();
 
 /* ============================================================
    Reference lists
@@ -705,6 +834,14 @@ function renderTabs(){
   const add = el('button','dogtab add', state.dogs.length ? '+ Add dog' : '+ Add your first dog');
   add.onclick = ()=> renderForm(null);
   bar.appendChild(add);
+
+  const join = el('button','dogtab add','↳ Join shared dog');
+  join.onclick = ()=> openJoinModal();
+  bar.appendChild(join);
+
+  const cfg = el('button','dogtab'); cfg.textContent='⚙'; cfg.title='Live-sharing settings';
+  cfg.setAttribute('aria-label','Live-sharing settings'); cfg.onclick = openConfigModal;
+  bar.appendChild(cfg);
 }
 
 function renderApp(){
@@ -715,8 +852,11 @@ function renderApp(){
       const e = el('div','empty');
       e.innerHTML = `<div style="font-size:44px">🐶</div><h2>Let’s build your first plan</h2>
         <p style="max-width:44ch;margin:0 auto 20px">Tell me about your dog — their age, what they can already do, and what you’re working on. You’ll get a tailored, source-backed plan in seconds.</p>`;
+      const row = el('div'); row.style.cssText='display:flex;gap:10px;justify-content:center;flex-wrap:wrap';
       const b = el('button','btn primary','Add your first dog'); b.onclick=()=>renderForm(null);
-      e.appendChild(b); app.appendChild(e);
+      const j = el('button','btn ghost','Join a shared dog'); j.onclick=()=>openJoinModal();
+      row.appendChild(b); row.appendChild(j); e.appendChild(row);
+      app.appendChild(e);
     } else { state.activeId = state.dogs[0].id; renderApp(); }
     return;
   }
@@ -762,6 +902,9 @@ function renderDogView(dog, app){
     app.appendChild(el('div','plan-heading', `Already got it · maintain`));
     plan.mastered.forEach(({m,score}) => app.appendChild(renderModule(dog, m, score, false, true)));
   }
+
+  // --- Sharing / live sync ---
+  app.appendChild(renderSharePanel(dog));
 
   // --- Profile actions ---
   const actions = el('div','profile-actions');
@@ -814,8 +957,12 @@ function renderModule(dog, m, score, openFirst, mastered){
 function taskItem(dog, m, i, text){
   const key = progKey(dog, m.id, i);
   const label = el('label','task');
-  const input = document.createElement('input'); input.type='checkbox'; input.checked=!!dog.progress[key];
-  input.onchange = ()=>{ if(input.checked) dog.progress[key]=true; else delete dog.progress[key]; save(); refreshCounts(); };
+  const input = document.createElement('input'); input.type='checkbox'; input.checked=!!dog.progress[key]; input.dataset.k=key;
+  input.onchange = ()=>{
+    if(input.checked) dog.progress[key]=true; else delete dog.progress[key];
+    save(); refreshCounts();
+    if (dog.shareCode) Sync.pushProgress(dog.shareCode, key, input.checked);
+  };
   const box = el('div','box','<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>');
   const span = el('span','task-text'); span.textContent=text;
   label.appendChild(input); label.appendChild(box); label.appendChild(span);
@@ -893,6 +1040,7 @@ function renderForm(existing){
     if (!existing) state.dogs.push(d);
     state.activeId = d.id;
     save(); renderTabs(); renderApp(); window.scrollTo({top:0,behavior:'smooth'});
+    if (d.shareCode) Sync.pushProfile(d.shareCode, d);
   };
   const cancel = el('button','btn ghost','Cancel');
   cancel.onclick = ()=>{ if(!existing && state.dogs.length===0){ renderApp(); } else { state.activeId = existing?existing.id:(state.dogs[0]&&state.dogs[0].id); renderApp(); } };
@@ -919,9 +1067,218 @@ function chipFieldset(title, help, list, selectedArr){
 
 function removeDog(dog){
   if (!confirm(`Remove ${dog.name} and their progress? This can’t be undone.`)) return;
+  if (dog.shareCode) Sync.stop(dog.shareCode);
   state.dogs = state.dogs.filter(x=>x.id!==dog.id);
   state.activeId = state.dogs[0] ? state.dogs[0].id : null;
   save(); renderTabs(); renderApp(); window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ============================================================
+   Sharing UI + real-time apply
+   ============================================================ */
+let syncStatus = 'off';
+function setSyncStatus(s){ syncStatus = s; const b=document.getElementById('syncBadge'); if(b) paintBadge(b); }
+function paintBadge(b){
+  if (syncStatus==='live'){ b.className='sync-badge sync-live'; b.innerHTML='<span class="d"></span>Live · synced'; }
+  else { b.className='sync-badge sync-off'; b.innerHTML='<span class="d"></span>Offline'; }
+}
+
+async function saveLocal(){ try{ await Store.set(DATA_KEY, JSON.stringify(state)); }catch(e){} }
+
+// A remote update arrived for a shared dog — merge it in and refresh gently.
+function applyRemote(code, data){
+  const dog = state.dogs.find(d=>d.shareCode===code);
+  if (!dog || !data) return;
+  const sig = d => JSON.stringify([d.name,d.breed,d.ageValue,d.ageUnit,d.known,d.goals,d.challenges]);
+  const before = sig(dog);
+  dog.name = data.name!=null ? data.name : dog.name;
+  dog.breed = data.breed||'';
+  dog.ageValue = data.ageValue!=null ? data.ageValue : dog.ageValue;
+  dog.ageUnit = data.ageUnit||dog.ageUnit;
+  dog.known = data.known||[]; dog.goals = data.goals||[]; dog.challenges = data.challenges||[];
+  dog.progress = data.progress||{};
+  saveLocal();
+  const editing = !!document.querySelector('.form-intro');
+  if (dog.id===state.activeId && !editing){
+    if (before !== sig(dog)) renderApp();          // profile/plan changed → full re-render
+    else { syncCheckboxes(dog); refreshCounts(); }  // progress only → gentle update
+  }
+  renderTabs();
+}
+function syncCheckboxes(dog){
+  document.querySelectorAll('#app .module .mod-inner input[type=checkbox]').forEach(inp=>{
+    if (inp.dataset.k!=null) inp.checked = !!dog.progress[inp.dataset.k];
+  });
+}
+
+function shareLink(code){ return location.origin + location.pathname + '?join=' + encodeURIComponent(code); }
+
+function renderSharePanel(dog){
+  const panel = el('div','share-panel');
+  if (dog.shareCode){
+    panel.innerHTML = `
+      <div class="sp-head"><h3>Shared live</h3><span id="syncBadge" class="sync-badge sync-off"><span class="d"></span>Offline</span></div>
+      <p>Everyone with this code sees and edits ${escapeHtml(dog.name)}’s plan in real time.</p>
+      <div class="code-box"><code>${escapeHtml(shareLink(dog.shareCode))}</code></div>`;
+    const acts = el('div','share-actions');
+    const cLink = el('button','btn','Copy invite link'); cLink.onclick=()=>copyText(shareLink(dog.shareCode), cLink);
+    const cCode = el('button','btn','Copy code'); cCode.onclick=()=>copyText(dog.shareCode, cCode);
+    const stopB = el('button','btn ghost danger','Stop sharing'); stopB.onclick=()=>unshareDog(dog);
+    acts.appendChild(cLink); acts.appendChild(cCode); acts.appendChild(stopB); panel.appendChild(acts);
+    if (Sync.configured()) Sync.init().then(()=>{ Sync.listen(dog.shareCode); setSyncStatus('live'); }).catch(()=>setSyncStatus('off'));
+    else setSyncStatus('off');
+    setTimeout(()=>{ const b=document.getElementById('syncBadge'); if(b) paintBadge(b); }, 0);
+  } else {
+    panel.innerHTML = `<div class="sp-head"><h3>Track together</h3></div>
+      <p>Share ${escapeHtml(dog.name)} with family or a co-owner, so you all update the same plan — live, on every phone.</p>`;
+    const acts = el('div','share-actions');
+    const b = el('button','btn primary', Sync.configured() ? 'Share this dog' : 'Set up live sharing');
+    b.onclick = ()=> Sync.configured() ? shareDog(dog) : openConfigModal();
+    const joinB = el('button','btn ghost','Join someone’s dog'); joinB.onclick=()=>openJoinModal();
+    acts.appendChild(b); acts.appendChild(joinB); panel.appendChild(acts);
+  }
+  return panel;
+}
+
+async function shareDog(dog){
+  if (!Sync.configured()){ openConfigModal(); return; }
+  try{
+    const code = await Sync.share(dog);
+    dog.shareCode = code; await save(); renderApp(); openInviteModal(dog);
+  }catch(e){ alert('Could not start sharing: ' + humanErr(e)); }
+}
+function unshareDog(dog){
+  if (!confirm(`Stop sharing ${dog.name} on this device? Anyone who already has the code keeps their copy; your current progress stays here.`)) return;
+  if (dog.shareCode) Sync.stop(dog.shareCode);
+  delete dog.shareCode; save(); renderApp();
+}
+
+/* ---------- Modals ---------- */
+function openModal(node){
+  const root = document.getElementById('modalRoot'); root.innerHTML='';
+  const back = el('div','modal-back'); back.onclick=closeModal;
+  const card = el('div','modal-card'); card.appendChild(node);
+  root.appendChild(back); root.appendChild(card); root.classList.add('open');
+  document.addEventListener('keydown', escClose);
+  const f = card.querySelector('input,textarea'); if (f) f.focus();
+}
+function closeModal(){ const root=document.getElementById('modalRoot'); root.classList.remove('open'); root.innerHTML=''; document.removeEventListener('keydown', escClose); }
+function escClose(e){ if (e.key==='Escape') closeModal(); }
+
+function openConfigModal(){
+  const node = el('div');
+  const existing = Sync.getConfig();
+  node.innerHTML = `
+    <h2>Set up live sharing</h2>
+    <p>Paste your Firebase web config below. One-time step, stored only on this device.</p>
+    <details class="help"><summary>How to get this (about 2 minutes)</summary>
+      <ol class="steps">
+        <li>Open <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">console.firebase.google.com</a> → <b>Add project</b> (you can skip Analytics).</li>
+        <li><b>Build → Firestore Database → Create database</b> → <i>Production mode</i> → pick a region.</li>
+        <li>Open the <b>Rules</b> tab, paste the rules from the project README, and click <b>Publish</b>.</li>
+        <li><b>Build → Authentication → Get started</b> → enable <b>Anonymous</b> → Save.</li>
+        <li><b>Project settings ⚙ → General → Your apps → Web (&lt;/&gt;)</b>, register an app, and copy the <code>firebaseConfig</code> object it shows you.</li>
+      </ol>
+    </details>
+    <textarea id="cfgInput" spellcheck="false" placeholder="const firebaseConfig = {\n  apiKey: '…',\n  authDomain: '…',\n  projectId: '…',\n  appId: '…'\n};">${existing?escapeHtml(JSON.stringify(existing,null,2)):''}</textarea>
+    <div class="modal-err" id="cfgErr"></div>`;
+  const acts = el('div','modal-actions');
+  const saveB = el('button','btn primary','Save & connect');
+  const cancelB = el('button','btn ghost','Cancel'); cancelB.onclick=closeModal;
+  saveB.onclick = async ()=>{
+    const err = node.querySelector('#cfgErr'); err.textContent='';
+    let cfg; try{ cfg = parseFirebaseConfig(node.querySelector('#cfgInput').value); }
+    catch(e){ err.textContent = e.message; return; }
+    Sync.saveConfig(cfg); saveB.textContent='Connecting…'; saveB.disabled=true;
+    try{
+      await Sync.init();
+      state.dogs.forEach(d=>{ if(d.shareCode) Sync.listen(d.shareCode); });
+      setSyncStatus('live'); closeModal(); renderApp();
+    }catch(e){ saveB.textContent='Save & connect'; saveB.disabled=false; err.textContent = humanErr(e); }
+  };
+  acts.appendChild(saveB); acts.appendChild(cancelB); node.appendChild(acts);
+  openModal(node);
+}
+
+function openJoinModal(prefill){
+  const node = el('div');
+  node.innerHTML = `
+    <h2>Join a shared dog</h2>
+    <p>Enter the share code someone sent you, to track their dog together.</p>
+    <input id="joinInput" class="big-code-input" type="text" placeholder="paste share code" value="${prefill?escapeAttr(prefill):''}">
+    <div class="modal-err" id="joinErr"></div>`;
+  const acts = el('div','modal-actions');
+  const joinB = el('button','btn primary','Join');
+  const cancelB = el('button','btn ghost','Cancel'); cancelB.onclick=closeModal;
+  joinB.onclick = async ()=>{
+    const err = node.querySelector('#joinErr'); err.textContent='';
+    const code = node.querySelector('#joinInput').value.trim();
+    if (!code){ err.textContent='Please enter a code.'; return; }
+    if (!Sync.configured()){
+      err.textContent='You need to set up Firebase on this device first — ';
+      const link = el('button','btn ghost','set it up'); link.style.padding='2px 8px';
+      link.onclick=()=>{ closeModal(); openConfigModal(); }; err.appendChild(link);
+      return;
+    }
+    joinB.textContent='Joining…'; joinB.disabled=true;
+    try{
+      const data = await Sync.join(code);
+      let dog = state.dogs.find(d=>d.shareCode===code);
+      if (!dog){ dog = { id:uid(), shareCode:code, progress:{}, known:[], goals:[], challenges:[] }; state.dogs.push(dog); }
+      Object.assign(dog, { name:data.name||'Shared dog', breed:data.breed||'', ageValue:data.ageValue||0,
+        ageUnit:data.ageUnit||'weeks', known:data.known||[], goals:data.goals||[], challenges:data.challenges||[], progress:data.progress||{} });
+      state.activeId = dog.id; await saveLocal();
+      closeModal(); renderTabs(); renderApp(); window.scrollTo({top:0,behavior:'smooth'});
+    }catch(e){ joinB.textContent='Join'; joinB.disabled=false; err.textContent = humanErr(e); }
+  };
+  acts.appendChild(joinB); acts.appendChild(cancelB); node.appendChild(acts);
+  openModal(node);
+}
+
+function openInviteModal(dog){
+  const link = shareLink(dog.shareCode);
+  const node = el('div');
+  node.innerHTML = `<h2>Sharing ${escapeHtml(dog.name)} 🎉</h2>
+    <p>Send this to whoever’s co-raising ${escapeHtml(dog.name)}. They open the link (or enter the code), and you’re tracking together — live.</p>
+    <div class="code-box"><code>${escapeHtml(link)}</code></div>`;
+  const acts = el('div','modal-actions');
+  const c1 = el('button','btn primary','Copy invite link'); c1.onclick=()=>copyText(link, c1);
+  const c2 = el('button','btn','Copy code only'); c2.onclick=()=>copyText(dog.shareCode, c2);
+  const done = el('button','btn ghost','Done'); done.onclick=closeModal;
+  acts.appendChild(c1); acts.appendChild(c2); acts.appendChild(done); node.appendChild(acts);
+  openModal(node);
+}
+
+/* ---------- Small helpers ---------- */
+function parseFirebaseConfig(text){
+  text = (text||'').trim();
+  const start = text.indexOf('{'), end = text.lastIndexOf('}');
+  if (start<0 || end<0) throw new Error('Couldn’t find a { … } config in what you pasted.');
+  const objText = text.slice(start, end+1);
+  let cfg;
+  try{ cfg = JSON.parse(objText); }
+  catch(_){ try{ cfg = (new Function('return (' + objText + ')'))(); } catch(e){ throw new Error('That doesn’t look like a valid config object.'); } }
+  if (!cfg || !cfg.apiKey || !cfg.projectId) throw new Error('Config is missing apiKey / projectId — copy the whole snippet.');
+  return cfg;
+}
+function humanErr(e){
+  const m = (e && e.message) || String(e);
+  if (m.includes('not-found')) return 'No shared dog was found for that code. Double-check it.';
+  if (m.includes('not-configured')) return 'Set up Firebase first (⚙ in the top row).';
+  if (m.includes('load-failed') || m.toLowerCase().includes('network') || m.includes('unavailable'))
+    return 'Couldn’t reach Firebase. If you’re inside the Claude Artifact, live sharing won’t work there — use your web / GitHub Pages version.';
+  if (m.includes('permission') || m.includes('PERMISSION')) return 'Firebase denied access — check that your Firestore Rules and Anonymous sign-in are set up (see the README).';
+  return m;
+}
+function copyText(text, btn){
+  const flash = ()=>{ if(btn){ const t=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>{ btn.textContent=t; }, 1400); } };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(flash).catch(()=>fallbackCopy(text, flash));
+  else fallbackCopy(text, flash);
+}
+function fallbackCopy(text, flash){
+  try{ const ta=document.createElement('textarea'); ta.value=text; ta.style.cssText='position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); flash&&flash(); }
+  catch(e){ prompt('Copy this:', text); }
 }
 
 /* ============================================================
@@ -943,6 +1300,16 @@ async function boot(){
   } catch(e){ /* first run or unreadable — start fresh */ }
   if (state.dogs.length && !activeDog()) state.activeId = state.dogs[0].id;
   renderTabs(); renderApp();
+
+  // Live sharing: reconnect any shared dogs, then handle an invite link.
+  Sync.setHandlers(applyRemote, setSyncStatus);
+  if (Sync.configured()){
+    Sync.init()
+      .then(()=>{ state.dogs.forEach(d=>{ if(d.shareCode) Sync.listen(d.shareCode); }); setSyncStatus('live'); })
+      .catch(e=>{ console.warn('sync init failed', e); setSyncStatus('off'); });
+  }
+  const joinCode = new URLSearchParams(location.search).get('join');
+  if (joinCode) openJoinModal(joinCode);
 }
 boot();
 </script>

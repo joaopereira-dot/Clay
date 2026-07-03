@@ -39,6 +39,8 @@ their own device.
 - **Actionable modules.** Each has step-by-step guidance, a "you've got it
   when…" milestone, and an inline citation to its source.
 - **Automatic progress saving** (see [Data & privacy](#data--privacy)).
+- **Optional live shared tracking** — several people can track the same dog in
+  real time via a share code (see [Shared tracking](#shared-tracking-optional-via-firebase)).
 - **No dependencies, no tracking, works offline** (the Artifact build).
 
 ## How the personalization works
@@ -119,11 +121,72 @@ sanity-checks that the output leaks no wrapper tags or CDN links.
 **Claude Artifact:** publish `dist/artifact.html` as an Artifact. Redeploying to
 the existing URL keeps the link (and everyone's saved progress) stable.
 
+## Shared tracking (optional, via Firebase)
+
+By default the app is single-user (see [Data & privacy](#data--privacy)). To let
+**several people track the same dog live**, the app can sync through a free
+[Firebase](https://firebase.google.com/) (Firestore) project. It's entirely
+optional and lazily loaded — the app stays dependency-free and fully offline
+until you configure it.
+
+**How it works for users:** each dog can be *shared*, which mints a random
+**share code**. Anyone who opens the invite link (`…/?join=CODE`) or enters the
+code joins that dog, and everyone's checkboxes and profile edits sync in real
+time. Progress writes are field-level, so simultaneous edits from different
+people merge instead of clobbering each other.
+
+> **Runs on a web host only.** Live sharing needs outbound network access, so it
+> works on the GitHub Pages build — **not** inside the Claude Artifact (its CSP
+> blocks external databases). The app still works there, just single-user.
+
+### One-time Firebase setup
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com/) →
+   **Add project** (you can skip Google Analytics).
+2. **Build → Firestore Database → Create database** → *Production mode* → choose
+   a region.
+3. In Firestore's **Rules** tab, paste the [rules below](#firestore-security-rules)
+   and click **Publish**.
+4. **Build → Authentication → Get started** → enable **Anonymous** → Save.
+5. **Project settings ⚙ → General → Your apps → Web (`</>`)**, register an app,
+   and copy the `firebaseConfig` object it shows you.
+6. In the app, click **⚙ (Live-sharing settings)** in the top row, paste the
+   config, and **Save & connect**. Then open a dog and press **Share this dog**.
+
+The Firebase web config is **not a secret** — it only identifies your project;
+access is governed by the rules below. The config is stored in `localStorage`
+under `puppy-firebase-config` (this device only).
+
+### Firestore security rules
+
+Random 20-character doc IDs act as the share code, and listing the collection is
+disallowed, so a dog is reachable only by someone who has its code. Sign-in is
+anonymous.
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /sharedDogs/{code} {
+      allow get, write: if request.auth != null;
+    }
+  }
+}
+```
+
+> This is friends-and-family privacy: anyone with a dog's share code can view and
+> edit it, and the data lives in your Firebase project (not end-to-end
+> encrypted). For stricter control you'd add per-user accounts and ownership
+> rules — a larger change.
+
+Shared dogs live in the Firestore collection `sharedDogs`; a local cache is still
+kept under `puppy-tracker-v2` so the app works offline and reconnects on load.
+
 ## Data & privacy
 
-Progress is stored **locally and privately** — nothing is sent to a server and
-nothing is shared between users. The `Store` module auto-selects the best
-available backend:
+By default, progress is stored **locally and privately** — nothing leaves your
+device unless you turn on [shared tracking](#shared-tracking-optional-via-firebase).
+The `Store` module auto-selects the best available backend:
 
 | Backend | When | Scope |
 | --- | --- | --- |
@@ -131,7 +194,7 @@ available backend:
 | `localStorage` | A normal web host / GitHub Pages | Per-browser, per-device |
 | In-memory | Neither available | This session only (a notice is shown) |
 
-All data lives under the key `puppy-tracker-v2`.
+All local data lives under the key `puppy-tracker-v2`.
 
 ## Sources
 
