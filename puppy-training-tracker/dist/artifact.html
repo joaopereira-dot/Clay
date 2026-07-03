@@ -283,11 +283,16 @@
   .big-code-input{ font-family:'IBM Plex Mono',monospace !important; font-size:16px !important; text-align:center; }
 
   /* ---------- Birthdate helper ---------- */
-  .dob-helper{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-top:12px; font-size:12.5px; color:var(--ink-soft); }
-  .dob-helper > span{ flex-basis:100%; }              /* keep the label on its own line so the controls line up below */
-  .dob-helper input, .dob-helper select{ width:auto; }
-  .dob-helper input[type=number]{ width:72px; }
-  .age-preview{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--gold-deep); margin-top:10px; min-height:15px; }
+  .age-row{ display:flex; align-items:center; gap:10px; }
+  .age-row input[type=number]{ width:92px; }
+  .age-row select{ width:auto; min-width:118px; }
+  .dob-exact{ margin-top:14px; }
+  .dob-exact summary{ cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--gold-deep); width:fit-content; }
+  .dob-exact input[type=date]{ margin-top:10px; text-align:left; }
+  /* iOS/WebKit renders the date value in a pseudo-element that centers by default — left-align it to match other fields. */
+  input[type=date]::-webkit-date-and-time-value{ text-align:left; }
+  input[type=date]::-webkit-datetime-edit{ text-align:left; }
+  .age-preview{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--gold-deep); margin-top:12px; min-height:15px; line-height:1.4; }
 
   /* ---------- Stage-advance nudge ---------- */
   .stage-nudge{ position:relative; display:flex; gap:12px; align-items:flex-start;
@@ -565,6 +570,14 @@ function ageDays(dog){
   return v*7;
 }
 function ageWeeks(dog){ return Math.floor(ageDays(dog)/7); }
+// Friendly age fields (value + unit) derived from a birth date, for form prefill.
+function ageFieldsFromBirth(birthDate){
+  const b = parseDateLocal(birthDate); if(!b) return { v:'', u:'weeks' };
+  const days = Math.max(0, Math.floor((Date.now()-b.getTime())/86400000));
+  if (days < 98) return { v:Math.floor(days/7), u:'weeks' };
+  const months = Math.round(days/30.44); if (months < 24) return { v:months, u:'months' };
+  return { v:Math.round(days/365.25), u:'years' };
+}
 function ageLabel(dog){
   const days = ageDays(dog);
   const weeks = Math.floor(days/7);
@@ -1134,35 +1147,48 @@ function renderForm(existing){
 
   // Basics
   const basics = el('div','fieldset');
+  const pf = ageFieldsFromBirth(draft.birthDate);   // prefill age fields from a stored birth date
   basics.innerHTML = `
     <span class="field-label">The basics</span>
     <div class="row" style="margin-bottom:14px">
       <div><label class="visually-hidden" for="f-name">Name</label><input id="f-name" type="text" placeholder="Name (e.g. Biscuit)" maxlength="24" value="${escapeAttr(draft.name)}"></div>
       <div><label class="visually-hidden" for="f-breed">Breed</label><input id="f-breed" type="text" placeholder="Breed (optional)" maxlength="40" value="${escapeAttr(draft.breed)}"></div>
     </div>
-    <span class="field-label" style="color:var(--ink-soft)">Date of birth</span>
-    <div class="field-help">We use this to keep the plan in step as your dog grows — the developmental stage updates on its own.</div>
-    <input id="f-dob" type="date" max="${todayISO()}" value="${escapeAttr(draft.birthDate)}">
-    <div class="dob-helper">
-      <span>Don’t know it? Approx age:</span>
-      <input id="f-agev" type="number" min="0" step="1" placeholder="10" aria-label="Approximate age value">
+    <span class="field-label" style="color:var(--ink-soft)">Age</span>
+    <div class="field-help">Sets the developmental stage — and keeps the plan in step as your dog grows.</div>
+    <div class="age-row">
+      <input id="f-agev" type="number" min="0" step="1" placeholder="10" aria-label="Age value" value="${escapeAttr(String(pf.v))}">
       <label class="visually-hidden" for="f-ageu">Age unit</label>
-      <select id="f-ageu"><option value="weeks">weeks</option><option value="months">months</option><option value="years">years</option></select>
-      <button type="button" id="f-ageset" class="btn">Set date</button>
+      <select id="f-ageu">
+        <option value="weeks"${pf.u==='weeks'?' selected':''}>weeks</option>
+        <option value="months"${pf.u==='months'?' selected':''}>months</option>
+        <option value="years"${pf.u==='years'?' selected':''}>years</option>
+      </select>
     </div>
+    <details class="dob-exact">
+      <summary>Know the exact birthday? (optional)</summary>
+      <label class="visually-hidden" for="f-dob">Date of birth</label>
+      <input id="f-dob" type="date" max="${todayISO()}" value="${escapeAttr(draft.birthDate||'')}">
+    </details>
     <div id="agePreview" class="age-preview"></div>`;
   app.appendChild(basics);
-  const dobEl = document.getElementById('f-dob');
+  const agevEl = document.getElementById('f-agev');
+  const ageuEl = document.getElementById('f-ageu');
+  const dobEl  = document.getElementById('f-dob');
+  const detailsEl = basics.querySelector('.dob-exact');
   const prevEl = document.getElementById('agePreview');
+  const currentDob = ()=>{
+    if (detailsEl.open && dobEl.value) return dobEl.value;                          // exact birthday wins when opened + set
+    if (agevEl.value!=='' && Number(agevEl.value)>=0) return birthFromAge(agevEl.value, ageuEl.value);
+    return '';
+  };
   const updatePreview = ()=>{
-    if (dobEl.value){ const t={birthDate:dobEl.value}; prevEl.textContent = 'Current age: '+ageLabel(t)+' · stage: '+getStage(ageWeeks(t)).eyebrow; }
-    else prevEl.textContent = '';
+    const dob = currentDob();
+    prevEl.textContent = dob ? ('Current age: '+ageLabel({birthDate:dob})+' · stage: '+getStage(ageWeeks({birthDate:dob})).eyebrow) : '';
   };
-  document.getElementById('f-ageset').onclick = ()=>{
-    const v=document.getElementById('f-agev').value; if(v==='') return;
-    dobEl.value = birthFromAge(v, document.getElementById('f-ageu').value); updatePreview();
-  };
-  dobEl.oninput = updatePreview; updatePreview();
+  agevEl.oninput = updatePreview; ageuEl.onchange = updatePreview;
+  dobEl.oninput = updatePreview; detailsEl.ontoggle = updatePreview;
+  updatePreview();
 
   app.appendChild(chipFieldset('What can they already do?', 'We’ll mark these as “maintain” instead of teaching them from scratch.', SKILLS, draft.known));
   app.appendChild(chipFieldset('What are you working toward?', 'Pick as many as you like — these rise to the top of the plan.', GOALS, draft.goals));
@@ -1172,10 +1198,19 @@ function renderForm(existing){
   const saveBtn = el('button','btn primary', existing?'Save changes':'Create plan');
   saveBtn.onclick = ()=>{
     const name = document.getElementById('f-name').value.trim();
-    let dob = document.getElementById('f-dob').value;
-    if (!dob){ const v=document.getElementById('f-agev').value; if(v!=='' && Number(v)>=0) dob = birthFromAge(v, document.getElementById('f-ageu').value); }
+    const detailsEl = document.querySelector('.dob-exact');
+    const agevEl = document.getElementById('f-agev'), ageuEl = document.getElementById('f-ageu');
+    let dob = '';
+    if (detailsEl && detailsEl.open && document.getElementById('f-dob').value){
+      dob = document.getElementById('f-dob').value;                       // user chose an exact birthday
+    } else if (agevEl.value!=='' && Number(agevEl.value)>=0){
+      const pf = ageFieldsFromBirth(existing && existing.birthDate ? existing.birthDate : '');
+      // If the age wasn't changed from the prefill, keep the exact stored birth date (avoids a few-days drift on re-save).
+      dob = (existing && existing.birthDate && Number(agevEl.value)===Number(pf.v) && ageuEl.value===pf.u)
+        ? existing.birthDate : birthFromAge(agevEl.value, ageuEl.value);
+    }
     if (!name){ alert('Please give your dog a name.'); return; }
-    if (!dob){ alert('Please enter a birthday, or an approximate age.'); return; }
+    if (!dob){ alert('Please enter your dog’s age (or an exact birthday).'); return; }
     if (dob > todayISO()){ alert('That birthday is in the future — please double-check it.'); return; }
     d.name=name; d.breed=document.getElementById('f-breed').value.trim();
     d.birthDate=dob; delete d.ageValue; delete d.ageUnit;

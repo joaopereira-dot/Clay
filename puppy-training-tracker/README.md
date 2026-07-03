@@ -24,9 +24,9 @@ their own device.
 
 - **Multiple dogs.** Each dog is a tab; add, switch, edit, or remove any of them.
   Every dog keeps its own profile and progress.
-- **Onboarding questionnaire.** Name, breed, **date of birth** (or an
-  approximate age), the skills they **already know**, your **goals**, and any
-  current **challenges**.
+- **Onboarding questionnaire.** Name, breed, **age** (with an optional exact
+  birthday), the skills they **already know**, your **goals**, and any current
+  **challenges**.
 - **Age that advances on its own.** Because age is derived from a birth date, the
   developmental stage and plan **update automatically as your dog grows** — and
   when a dog crosses into a new stage, a one-time banner tells you what changes.
