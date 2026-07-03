@@ -596,23 +596,32 @@ function ageDays(dog){
   return v*7;
 }
 function ageWeeks(dog){ return Math.floor(ageDays(dog)/7); }
+// Whole calendar months between the birth date and today. Calendar-based so it
+// round-trips exactly with birthFromAge (which subtracts calendar months) —
+// entering "8 months" reads back as "8 months", not 7.
+function calAgeMonths(dog){
+  const b = parseDateLocal(dog.birthDate); if(!b) return null;
+  const now = new Date();
+  let m = (now.getFullYear()-b.getFullYear())*12 + (now.getMonth()-b.getMonth());
+  if (now.getDate() < b.getDate()) m--;   // haven't reached the day-of-month yet this month
+  return Math.max(0, m);
+}
 // Friendly age fields (value + unit) derived from a birth date, for form prefill.
 function ageFieldsFromBirth(birthDate){
   const b = parseDateLocal(birthDate); if(!b) return { v:'', u:'weeks' };
   const days = Math.max(0, Math.floor((Date.now()-b.getTime())/86400000));
   if (days < 98) return { v:Math.floor(days/7), u:'weeks' };
-  const months = Math.round(days/30.44); if (months < 24) return { v:months, u:'months' };
-  return { v:Math.round(days/365.25), u:'years' };
+  const months = calAgeMonths({birthDate}); if (months < 24) return { v:months, u:'months' };
+  return { v:Math.floor(months/12), u:'years' };
 }
 function ageLabel(dog){
   const days = ageDays(dog);
-  const weeks = Math.floor(days/7);
-  if (days < 98) return weeks + (weeks===1?' week':' weeks');   // under ~14 weeks → count weeks
-  const months = Math.floor(days/30.44);
+  if (days < 98){ const w = Math.floor(days/7); return w + (w===1?' week':' weeks'); }  // under ~14 weeks → count weeks
+  const months = calAgeMonths(dog);
+  if (months == null) return Math.floor(days/30.44) + ' months';   // legacy dogs with no birth date
   if (months < 24) return months + ' months';
-  const years = Math.floor(days/365.25);
-  const remM = Math.round((days - years*365.25)/30.44);
-  return remM>0 ? `${years}y ${remM}m` : `${years} year${years>1?'s':''}`;
+  const years = Math.floor(months/12), rem = months % 12;
+  return rem>0 ? `${years}y ${rem}m` : `${years} year${years>1?'s':''}`;
 }
 function getStage(w){
   if (w < 12) return {
