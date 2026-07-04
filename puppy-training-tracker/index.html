@@ -333,6 +333,12 @@
     cursor:pointer; font-size:15px; line-height:1; padding:4px; }
   .sn-close:hover{ color:var(--brick); }
 
+  /* ---------- Breed insight ---------- */
+  .breed-note{ background:var(--paper-dark); border:1px solid var(--line); border-radius:var(--radius); padding:14px 18px; margin:18px 0 0; }
+  .bn-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.09em; text-transform:uppercase; color:var(--brick); margin-bottom:6px; }
+  .bn-text{ font-size:13.5px; color:var(--ink); line-height:1.55; }
+  .bn-caution{ margin-top:11px; font-size:12.5px; color:#7a3f2b; background:rgba(156,82,56,0.09); border:1px solid rgba(156,82,56,0.25); border-radius:9px; padding:9px 12px; }
+
   /* ---------- Today's focus ---------- */
   .today{ background:var(--forest); color:var(--paper); border-radius:var(--radius); padding:18px 20px; margin:18px 0 8px; }
   .today-head{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
@@ -980,6 +986,67 @@ const ADVANCED = {
 MODULES.forEach(m=>{ const a=ADVANCED[m.id]; if(a){ m.advanced=a.s; m.advSource=a.src; } });
 
 /* ============================================================
+   Breed tailoring. Free-text breed is matched to a breed TYPE,
+   whose training tendencies nudge module priorities and add a
+   breed-insight note. Boosts only raise already-relevant modules.
+   ============================================================ */
+const BREED_GROUPS = {
+  herding:   { label:'Herding breed',
+    note:"Bright, biddable, and bred to work all day — herders learn fast but bore fast too. Expect chasing and heel-nipping instincts, and give plenty of mental work.",
+    boosts:{ enrichment:14, impulse:12, settle:11, recall:8, bite:7, socialization:6 } },
+  gundog:    { label:'Gundog / retriever',
+    note:"Bred to work closely with people and carry things in their mouth — usually food-motivated and social, but mouthy and energetic. Channel mouthing into fetch and holds, and burn energy daily.",
+    boosts:{ bite:12, enrichment:10, leash:8, recall:8 } },
+  scenthound:{ label:'Scent hound',
+    note:"Ruled by the nose and bred to follow it for miles. Recall is genuinely harder and a scent can override you — train on a long line and give nosework outlets.",
+    boosts:{ recall:16, enrichment:10, leash:8 },
+    caution:"A following nose can trump any cue — keep a long line near roads and wildlife until recall is rock-solid." },
+  sighthound:{ label:'Sighthound',
+    note:"Gentle couch-potatoes indoors, explosive sprinters outdoors, with a strong chase drive. Often sensitive, so keep training gentle and upbeat.",
+    boosts:{ recall:14, impulse:9, calming:6 },
+    caution:"A moving squirrel or cat can outrun your recall — keep a long line near wildlife and roads." },
+  terrier:   { label:'Terrier',
+    note:"Bold, tenacious, and full of prey drive — bred to work independently underground. Reward focus and impulse control, give digging and foraging outlets, and socialise well with other dogs.",
+    boosts:{ impulse:12, recall:11, enrichment:10, socialization:7 } },
+  guardian:  { label:'Guardian / working breed',
+    note:"Large, powerful, and often watchful. Early, positive socialisation is critical to a confident adult, and loose-lead walking plus impulse control matter far more at this size and strength.",
+    boosts:{ socialization:14, leash:11, settle:9, impulse:8 } },
+  nordic:    { label:'Nordic / sled breed',
+    note:"Independent, athletic, and bred to run and pull for miles — with selective hearing. Secure your garden, keep a long line, and expect recall to take real work.",
+    boosts:{ recall:15, leash:11, enrichment:10, alone:6 },
+    caution:"Bred to run and roam, and famous escape artists — check fences and gates, and don't trust off-lead until recall is proven." },
+  poodle:    { label:'Poodle / doodle',
+    note:"Clever, eager, and often velcro-close — with a coat that needs lifelong grooming. Make brushing and clipping positive now, keep their busy brains occupied, and build calm alone-time.",
+    boosts:{ cooperative:15, enrichment:9, alone:8 } },
+  brachy:    { label:'Flat-faced (brachycephalic) breed',
+    note:"Charming and people-loving, but flat faces mean they overheat and tire quickly. Favour brain games over hard exercise, and build vet and handling comfort early — these breeds often need more health care.",
+    boosts:{ cooperative:13, enrichment:9 },
+    caution:"Flat-faced breeds overheat dangerously easily — keep exercise gentle in warm weather and watch for laboured breathing." },
+  toy:       { label:'Toy / companion breed',
+    note:"Small in size, but they need the same real training as any dog. Prioritise confident socialisation and handling (don't just carry them everywhere), and be patient — house-training can take a little longer.",
+    boosts:{ socialization:10, cooperative:9, potty:8, settle:6 } },
+};
+// Ordered so crosses (doodles) and flat-faced match before their base breed.
+const BREED_KEYWORDS = [
+  [/poodle|doodle|cockapoo|cavapoo|labradoodle|goldendoodle|maltipoo|cavachon|schnoodle|bichon/, 'poodle'],
+  [/french bulldog|frenchie|bulldog|\bpug\b|boston terrier|shih.?tzu|pekingese|pekinese|lhasa/, 'brachy'],
+  [/border collie|\bcollie\b|sheepdog|shetland|sheltie|aussie|australian shepherd|heeler|cattle dog|corgi|malinois|belgian|german shepherd|\bgsd\b|alsatian/, 'herding'],
+  [/labrador|retriever|golden|spaniel|cocker|springer|pointer|setter|vizsla|weimaraner|brittany|\bgun.?dog\b|\blab\b/, 'gundog'],
+  [/beagle|basset|bloodhound|coonhound|foxhound|harrier|dachshund|doxie|sausage.?dog|scent.?hound/, 'scenthound'],
+  [/greyhound|whippet|saluki|lurcher|sight.?hound|borzoi|afghan hound|deerhound|wolfhound/, 'sighthound'],
+  [/terrier|jack russell|\bjrt\b|staffie|staffordshire|westie|cairn|yorkie|yorkshire|schnauzer|\bpit\b|patterdale/, 'terrier'],
+  [/rottweiler|rottie|doberman|dobermann|\bboxer\b|mastiff|great dane|bernese|cane corso|akita|leonberger|newfoundland|saint bernard|\bst bernard\b|rhodesian|ridgeback/, 'guardian'],
+  [/husky|malamute|samoyed|nordic|sled|spitz|eskimo|shiba/, 'nordic'],
+  [/chihuahua|pomeranian|maltese|cavalier|havanese|papillon|\btoy\b|min.?pin|miniature pinscher|pinscher|\bpom\b/, 'toy'],
+];
+function breedProfile(dog){
+  const t = (dog.breed||'').toLowerCase().trim();
+  if (!t) return null;
+  for (const [re, g] of BREED_KEYWORDS){ if (re.test(t)) return Object.assign({ group:g }, BREED_GROUPS[g]); }
+  return null;   // free text we don't recognise — plan still tailors by age/goals/challenges
+}
+
+/* ============================================================
    State
    ============================================================ */
 let state = { dogs:[], activeId:null, stageSeen:{} };
@@ -1004,9 +1071,11 @@ function flashStatus(msg){
    ============================================================ */
 function buildPlan(dog){
   const active = [], mastered = [];
+  const bp = breedProfile(dog);
   MODULES.forEach(m => {
-    const s = m.score(dog);
+    let s = m.score(dog);
     if (s == null) return;
+    if (bp && bp.boosts && bp.boosts[m.id]) s += bp.boosts[m.id];   // breed nudges priority
     const entry = { m, score:s };
     if (m.skill && has(dog.known, m.skill)) mastered.push(entry); else active.push(entry);
   });
@@ -1099,6 +1168,10 @@ function renderDogView(dog, app){
     </div>
     <div class="caution">⚠️ ${stage.caution}</div>`;
   app.appendChild(brief);
+
+  // --- Breed insight (tailors the plan) ---
+  const bp = breedProfile(dog);
+  if (bp) app.appendChild(renderBreedNote(bp));
 
   // --- Today's focus ---
   app.appendChild(renderToday(dog, plan));
@@ -1243,6 +1316,15 @@ function todayItem(dog, it){
   text.innerHTML = `<span class="ti-mod">${it.module.icon} ${escapeHtml(it.module.title)}</span><span class="ti-step">${escapeHtml(it.text)}</span>`;
   row.appendChild(input); row.appendChild(box); row.appendChild(text);
   return row;
+}
+
+// Breed-insight card: explains how the dog's breed type shapes the plan.
+function renderBreedNote(bp){
+  const n = el('div','breed-note');
+  let html = `<div class="bn-eyebrow">🧬 Breed insight · ${escapeHtml(bp.label)}</div><div class="bn-text">${bp.note}</div>`;
+  if (bp.caution) html += `<div class="bn-caution">⚠️ ${bp.caution}</div>`;
+  n.innerHTML = html;
+  return n;
 }
 
 // Congratulatory banner shown once when a dog's age crosses into a new stage.

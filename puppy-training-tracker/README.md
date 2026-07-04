@@ -42,6 +42,11 @@ their own device.
     being taught from scratch.
   - **Goals & challenges** float the most relevant of the 17 training modules to
     the top.
+  - **Breed** is matched to a breed *type* (herding, gundog, scent hound,
+    sighthound, terrier, guardian, nordic, toy, poodle/doodle, flat-faced),
+    which re-weights modules to that type's tendencies and shows a breed-insight
+    note — e.g. a Beagle's plan pushes recall up with a long-line caution; a
+    doodle's pushes grooming/handling up.
 - **Actionable modules.** Each has step-by-step guidance, a "you've got it
   when…" milestone, and an inline citation to its source.
 - **"Take it further" progressions.** Every module has an advanced next-level
@@ -71,9 +76,12 @@ in weeks maps to a stage:
 
 Each module exposes a `score(dog)` function that returns a priority number
 (or `null` to hide it) based on age, goals, challenges, and known skills. The
-plan is the applicable modules sorted by score; modules matching an
-already-known skill move to the maintenance section. **Today's focus** simply
-takes the next unfinished step from each of the top-scoring modules.
+free-text **breed** is matched to a breed type whose `boosts` are then added to
+the relevant module scores (raising already-applicable modules, never forcing in
+unrelated ones). The plan is the applicable modules sorted by score; modules
+matching an already-known skill move to the maintenance section. **Today's
+focus** simply takes the next unfinished step from each of the top-scoring
+modules.
 
 ## Project structure
 
