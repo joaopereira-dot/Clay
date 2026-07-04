@@ -40,10 +40,15 @@ their own device.
     module about regression and management.
   - **Known skills** drop into an "Already got it · maintain" section instead of
     being taught from scratch.
-  - **Goals & challenges** float the most relevant of the 15 training modules to
+  - **Goals & challenges** float the most relevant of the 17 training modules to
     the top.
 - **Actionable modules.** Each has step-by-step guidance, a "you've got it
   when…" milestone, and an inline citation to its source.
+- **"Take it further" progressions.** Every module has an advanced next-level
+  section (the 3 Ds, proofing, emergency cues, the Kennel Club's graded scheme),
+  drawn from European practice — so plans deepen as the basics land. Two extra
+  situation-aware modules cover **reading calming signals** (Turid Rugaas) and
+  **cooperative care & handling** (RSPCA).
 - **Automatic progress saving** (see [Data & privacy](#data--privacy)).
 - **Optional live shared tracking** — several people can track the same dog in
   real time via a share code (see [Shared tracking](#shared-tracking-optional-via-firebase)).
@@ -223,6 +228,14 @@ module links the specific one it's based on.
 - [San Diego Humane Society — Loose-Leash Walking](https://sdhumane.org/resources/training-tips-loose-leash-walking/)
 - [Whole Dog Journal — Teaching a Reliable Recall](https://www.whole-dog-journal.com/training/teaching-a-reliable-recall/)
 - [Purina — Brain Games for Dogs](https://www.purina.com/articles/dog/behavior/play/brain-games-for-dogs)
+
+European (UK / EU) sources:
+
+- [Dogs Trust (UK) — Positive Reinforcement Training](https://www.dogstrust.org.uk/dog-advice/training/techniques/positive-reinforcement-training-with-rewards)
+- [Dogs Trust (UK) — Introducing Your Puppy to the World](https://www.dogstrust.org.uk/dog-advice/puppy/puppy-socialisation-introduction)
+- [The Royal Kennel Club (UK) — Good Citizen Dog Scheme](https://www.thekennelclub.org.uk/dog-training/good-citizen-dog-training-scheme/)
+- [Turid Rugaas (Norway) — On Talking Terms With Dogs: Calming Signals](https://en.turid-rugaas.no/)
+- [RSPCA (UK) — Dog Behaviour & Reward-Based Training](https://www.rspca.org.uk/adviceandwelfare/pets/dogs/behaviour)
 
 > **Not veterinary advice.** This app is general education. Vaccination status
 > changes what's safe for public socialization — confirm outdoor/public steps

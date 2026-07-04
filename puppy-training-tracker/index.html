@@ -225,7 +225,7 @@
   .chevron{ width:15px; height:15px; flex:none; transition:transform .25s ease; color:var(--ink-soft); }
   .module.open .chevron{ transform:rotate(180deg); }
   .mod-body{ max-height:0; overflow:hidden; transition:max-height .4s ease; }
-  .module.open .mod-body{ max-height:2200px; }
+  .module.open .mod-body{ max-height:3600px; }
   .mod-inner{ padding:2px 17px 18px; border-top:1px solid var(--line); }
   .why{
     font-size:13.5px; color:var(--ink); background:var(--paper); border-radius:10px;
@@ -255,6 +255,9 @@
   .milestone .box{ border-color:var(--brick); }
   .milestone input:checked + .box{ background:var(--brick); border-color:var(--brick); }
   .ms-label{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--brick); margin-bottom:5px; }
+  .adv-label{ color:var(--gold-deep); }
+  .adv-src{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; margin-top:8px; color:var(--ink-soft); }
+  .adv-src a{ color:var(--gold-deep); }
 
   .profile-actions{ display:flex; gap:10px; flex-wrap:wrap; margin:26px 0 8px; }
 
@@ -572,6 +575,12 @@ const SOURCES = {
   sdhumane:{name:'San Diego Humane Society — Loose-Leash Walking', url:'https://sdhumane.org/resources/training-tips-loose-leash-walking/'},
   wdjRecall:{name:'Whole Dog Journal — Teaching a Reliable Recall', url:'https://www.whole-dog-journal.com/training/teaching-a-reliable-recall/'},
   purina:  {name:'Purina — Brain Games for Dogs', url:'https://www.purina.com/articles/dog/behavior/play/brain-games-for-dogs'},
+  // European (UK / EU) sources
+  dogsTrust:   {name:'Dogs Trust (UK) — Positive Reinforcement Training', url:'https://www.dogstrust.org.uk/dog-advice/training/techniques/positive-reinforcement-training-with-rewards'},
+  dogsTrustSoc:{name:'Dogs Trust (UK) — Introducing Your Puppy to the World', url:'https://www.dogstrust.org.uk/dog-advice/puppy/puppy-socialisation-introduction'},
+  kennelClub:  {name:'The Royal Kennel Club (UK) — Good Citizen Dog Scheme', url:'https://www.thekennelclub.org.uk/dog-training/good-citizen-dog-training-scheme/'},
+  rugaas:      {name:'Turid Rugaas (Norway) — On Talking Terms With Dogs: Calming Signals', url:'https://en.turid-rugaas.no/'},
+  rspca:       {name:'RSPCA (UK) — Dog Behaviour & Reward-Based Training', url:'https://www.rspca.org.uk/adviceandwelfare/pets/dogs/behaviour'},
 };
 
 /* ============================================================
@@ -885,6 +894,91 @@ const MODULES = [
   }
 ];
 
+// Two advanced, situation-aware modules grounded in European practice.
+MODULES.push(
+  {
+    id:'calming', skill:null, icon:'🕊️', title:'Reading your dog: calming signals',
+    focus:'Spot stress early and respond before it escalates',
+    score(d){ if(has(d.challenges,'fearful')) return 73; if(has(d.challenges,'hyper')||has(d.challenges,'barking')) return 52; return 46; },
+    why:"Dogs constantly tell us how they feel. Learning to read <b>calming signals</b> — lip-licks, yawns, turning away, sniffing, slowing down — lets you spot stress early and adjust before fear or reactivity takes hold. Coined by Norwegian trainer Turid Rugaas.",
+    source:SOURCES.rugaas,
+    steps:[
+      'Learn the common signals: lip-lick, yawn, head or body turn, sniffing the ground, freezing, slow movements.',
+      'Watch your dog in mild everyday situations and quietly name the signals you notice.',
+      'When you see stress signals, calmly add distance or end the interaction — then reward the calmer choice.',
+      'Use your own body language too: slow movements, curved approaches, and don’t loom over or reach into their space.'
+    ],
+    milestone:'You can spot your dog’s early stress signals and adjust before they escalate.'
+  },
+  {
+    id:'cooperative', skill:'handling', icon:'🩺', title:'Cooperative care & handling',
+    focus:'Low-stress vet visits, grooming and nail trims',
+    score(d){ if(ageWeeks(d)<27) return 58; if(has(d.goals,'manners')) return 50; return 44; },
+    why:"Vet visits, grooming and nail trims happen for life. <b>Cooperative care</b> teaches your dog to be a willing, consenting participant using rewards — so handling stays calm and safe, never a battle. Championed by the RSPCA and UK welfare organisations.",
+    source:SOURCES.rspca,
+    steps:[
+      'Pair gentle handling — paws, ears, mouth, collar hold — with treats, just a few seconds at a time.',
+      'Teach a “chin rest” or a clear start/stop signal so your dog can opt in and out of handling.',
+      'Rehearse vet and groomer moments: standing still, being lifted, brief restraint — reward calm throughout.',
+      'For nails or brushing: one stroke, treat, repeat — and stop before your dog wants to leave.'
+    ],
+    milestone:'Tolerates — even enjoys — handling, grooming and basic vet checks.'
+  }
+);
+
+// "Take it further" advanced progressions, kept separate to keep each module tidy.
+// Attached to the modules above; surfaced after the basics + milestone are done.
+const ADVANCED = {
+  marker:{ src:SOURCES.dogsTrust, s:[
+    'Vary your rewards — food, play, praise — and start paying with “life rewards” too: a door opening, permission to sniff.',
+    'Build duration: mark a little less often and reward slightly longer efforts.' ]},
+  name:{ src:SOURCES.kennelClub, s:[
+    'Proof it in stages: the garden, then a quiet street, then near mild distractions.',
+    'Grow a “watch me” — reward 2–3 seconds of sustained eye contact before releasing.' ]},
+  socialization:{ src:SOURCES.dogsTrustSoc, s:[
+    'Quality over quantity — a few calm, positive encounters beat many overwhelming ones.',
+    'Watch for calming signals (lip-licks, yawns, turning away) and give space the moment you see them.',
+    'Keep a checklist — surfaces, sounds, people, handling, traffic, travel — and tick off varied, positive exposures.' ]},
+  potty:{ src:SOURCES.rspca, s:[
+    'Fade the fixed schedule gradually as accident-free stretches grow — but don’t drop supervision too early.',
+    'Generalise to new places (a clean park, a friend’s house) so “outside” means anywhere appropriate.' ]},
+  crate:{ src:SOURCES.dogsTrust, s:[
+    'Build duration and distance — leave the room, then the house, for short and gradually longer spells.',
+    'Transfer calm settling to a mat or pen so your dog can relax outside the crate too.' ]},
+  bite:{ src:SOURCES.rugaas, s:[
+    'Once the mouth is soft, teach an incompatible habit — grab a toy to greet, or a chin rest.',
+    'If mouthing spikes, check for over-tiredness or over-arousal and build in real rest.' ]},
+  cues:{ src:SOURCES.kennelClub, s:[
+    'Add the “3 Ds” one at a time — Duration, Distance, then Distraction — never two at once.',
+    'Aim for Kennel Club Puppy Foundation and Bronze exercises as concrete real-world goals.' ]},
+  impulse:{ src:SOURCES.dogsTrust, s:[
+    'Grow “leave it” from a covered treat, to food on the floor, to walking past dropped food.',
+    'Train an emergency “leave it” for hazards on walks — reward big and move on.' ]},
+  leash:{ src:SOURCES.kennelClub, s:[
+    'Add turns, pace changes and “find it” scatters to hold focus on busier routes.',
+    'Teach a “this way” cue for direction changes instead of relying on the lead.' ]},
+  recall:{ src:SOURCES.kennelClub, s:[
+    'Proof against the 3 Ds — recall past distractions, from longer distances, in new places.',
+    'Add a separate emergency recall (a unique whistle or word) that’s always jackpotted.' ]},
+  settle:{ src:SOURCES.rugaas, s:[
+    'Build a portable “settle” on a mat you take to cafés, friends’ homes and the vet waiting room.',
+    'Reward voluntary calm — the moments your dog chooses to lie down and switch off.' ]},
+  alone:{ src:SOURCES.rspca, s:[
+    'Vary absence lengths (5, 2, 12, 8 min) so time alone stays unpredictable and low-stress.',
+    'Film your dog while out; scale back if you see early stress — pacing, whining, calming signals.' ]},
+  enrichment:{ src:SOURCES.dogsTrust, s:[
+    'Rotate enrichment weekly: foraging, chewing, problem-solving, “sniffari” walks, trick chains.',
+    'Teach a longer trick sequence or start scentwork to stretch focus and confidence.' ]},
+  adolescent:{ src:SOURCES.kennelClub, s:[
+    'Re-test every cue against the 3 Ds and note which conditions still wobble — train those on purpose.',
+    'Give the teenage brain a job: scentwork, trick training, or a Kennel Club Bronze/Silver goal.' ]},
+  calming:{ src:SOURCES.rugaas, s:[
+    'Keep a short log of what triggers stress signals, then plan to add distance or counter-condition those triggers.' ]},
+  cooperative:{ src:SOURCES.rspca, s:[
+    'Build a real nail-trim or tooth-brushing routine with a clear start/stop consent signal.' ]},
+};
+MODULES.forEach(m=>{ const a=ADVANCED[m.id]; if(a){ m.advanced=a.s; m.advSource=a.src; } });
+
 /* ============================================================
    State
    ============================================================ */
@@ -922,10 +1016,12 @@ function buildPlan(dog){
 }
 function progKey(dog, mId, i){ return mId+'::'+i; }
 function moduleProgress(dog, m){
-  const total = m.steps.length + 1; // +1 milestone
+  const advN = m.advanced ? m.advanced.length : 0;
+  const total = m.steps.length + 1 + advN; // steps + milestone + "take it further"
   let done = 0;
   for (let i=0;i<m.steps.length;i++) if (dog.progress[progKey(dog,m.id,i)]) done++;
   if (dog.progress[progKey(dog,m.id,'ms')]) done++;
+  for (let i=0;i<advN;i++) if (dog.progress[progKey(dog,m.id,'a'+i)]) done++;
   return { done, total };
 }
 function overallProgress(dog, plan){
@@ -1075,6 +1171,14 @@ function renderModule(dog, m, score, openFirst, mastered){
   ms.appendChild(taskItem(dog, m, 'ms', m.milestone));
   inner.appendChild(ms);
 
+  if (m.advanced && m.advanced.length){
+    inner.appendChild(el('div','section-label adv-label','🎓 Take it further'));
+    const aul = el('ul','tasklist');
+    m.advanced.forEach((text,i)=> aul.appendChild(taskItem(dog, m, 'a'+i, text)));
+    inner.appendChild(aul);
+    if (m.advSource) inner.appendChild(el('div','adv-src', `📖 <a href="${m.advSource.url}" target="_blank" rel="noopener">${escapeHtml(m.advSource.name)}</a>`));
+  }
+
   body.appendChild(inner); card.appendChild(body);
   return card;
 }
@@ -1104,6 +1208,7 @@ function nextItemsForModule(dog, m){
   const items = [];
   m.steps.forEach((text,i)=>{ const key=progKey(dog,m.id,i); if(!dog.progress[key]) items.push({key, text, module:m}); });
   const msKey = progKey(dog,m.id,'ms'); if(!dog.progress[msKey]) items.push({key:msKey, text:'🏁 '+m.milestone, module:m});
+  (m.advanced||[]).forEach((text,i)=>{ const key=progKey(dog,m.id,'a'+i); if(!dog.progress[key]) items.push({key, text, module:m}); });
   return items;
 }
 function buildTodayFocus(dog, plan){
