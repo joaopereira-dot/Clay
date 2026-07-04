@@ -76,9 +76,10 @@ in weeks maps to a stage:
 
 Each module exposes a `score(dog)` function that returns a priority number
 (or `null` to hide it) based on age, goals, challenges, and known skills. The
-free-text **breed** is matched to a breed type whose `boosts` are then added to
-the relevant module scores (raising already-applicable modules, never forcing in
-unrelated ones). The plan is the applicable modules sorted by score; modules
+**breed** (chosen from a grouped dropdown) is matched to a breed type whose
+`boosts` are then added to the relevant module scores (raising already-applicable
+modules, never forcing in unrelated ones). Any pre-existing free-text breed is
+preserved as a selectable option. The plan is the applicable modules sorted by score; modules
 matching an already-known skill move to the maintenance section. **Today's
 focus** simply takes the next unfinished step from each of the top-scoring
 modules.

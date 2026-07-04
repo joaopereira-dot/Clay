@@ -1003,24 +1003,53 @@ const BREED_GROUPS = {
     note:"Small in size, but they need the same real training as any dog. Prioritise confident socialisation and handling (don't just carry them everywhere), and be patient — house-training can take a little longer.",
     boosts:{ socialization:10, cooperative:9, potty:8, settle:6 } },
 };
-// Ordered so crosses (doodles) and flat-faced match before their base breed.
+// Ordered so crosses (doodles), flat-faced, and toy companions match before
+// their base type (e.g. Cavalier before "spaniel"→gundog). Each type also
+// matches its own name so the generic "…(other / mix)" options resolve.
 const BREED_KEYWORDS = [
   [/poodle|doodle|cockapoo|cavapoo|labradoodle|goldendoodle|maltipoo|cavachon|schnoodle|bichon/, 'poodle'],
-  [/french bulldog|frenchie|bulldog|\bpug\b|boston terrier|shih.?tzu|pekingese|pekinese|lhasa/, 'brachy'],
-  [/border collie|\bcollie\b|sheepdog|shetland|sheltie|aussie|australian shepherd|heeler|cattle dog|corgi|malinois|belgian|german shepherd|\bgsd\b|alsatian/, 'herding'],
+  [/french bulldog|frenchie|bulldog|\bpug\b|boston terrier|shih.?tzu|pekingese|pekinese|lhasa|brachy|flat.?face/, 'brachy'],
+  [/border collie|\bcollie\b|sheepdog|shetland|sheltie|aussie|australian shepherd|heeler|cattle dog|corgi|malinois|belgian|german shepherd|\bgsd\b|alsatian|herding/, 'herding'],
+  [/chihuahua|pomeranian|maltese|cavalier|havanese|papillon|\btoy\b|companion|min.?pin|miniature pinscher|pinscher|\bpom\b/, 'toy'],
   [/labrador|retriever|golden|spaniel|cocker|springer|pointer|setter|vizsla|weimaraner|brittany|\bgun.?dog\b|\blab\b/, 'gundog'],
   [/beagle|basset|bloodhound|coonhound|foxhound|harrier|dachshund|doxie|sausage.?dog|scent.?hound/, 'scenthound'],
   [/greyhound|whippet|saluki|lurcher|sight.?hound|borzoi|afghan hound|deerhound|wolfhound/, 'sighthound'],
   [/terrier|jack russell|\bjrt\b|staffie|staffordshire|westie|cairn|yorkie|yorkshire|schnauzer|\bpit\b|patterdale/, 'terrier'],
-  [/rottweiler|rottie|doberman|dobermann|\bboxer\b|mastiff|great dane|bernese|cane corso|akita|leonberger|newfoundland|saint bernard|\bst bernard\b|rhodesian|ridgeback/, 'guardian'],
+  [/rottweiler|rottie|doberman|dobermann|\bboxer\b|mastiff|great dane|bernese|cane corso|akita|leonberger|newfoundland|saint bernard|\bst bernard\b|rhodesian|ridgeback|guardian|working breed/, 'guardian'],
   [/husky|malamute|samoyed|nordic|sled|spitz|eskimo|shiba/, 'nordic'],
-  [/chihuahua|pomeranian|maltese|cavalier|havanese|papillon|\btoy\b|min.?pin|miniature pinscher|pinscher|\bpom\b/, 'toy'],
 ];
 function breedProfile(dog){
   const t = (dog.breed||'').toLowerCase().trim();
   if (!t) return null;
   for (const [re, g] of BREED_KEYWORDS){ if (re.test(t)) return Object.assign({ group:g }, BREED_GROUPS[g]); }
-  return null;   // free text we don't recognise — plan still tailors by age/goals/challenges
+  return null;   // "Mixed/other" or unrecognised — plan still tailors by age/goals/challenges
+}
+
+/* Grouped breed list for the dropdown. Each type ends with a generic
+   "…(other / mix)" option that still resolves to that type's tailoring. */
+const BREED_OPTIONS = [
+  ['Herding', ['Border Collie','German Shepherd','Australian Shepherd','Shetland Sheepdog (Sheltie)','Corgi','Collie','Australian Cattle Dog (Heeler)','Belgian Malinois','Herding breed (other / mix)']],
+  ['Gundog & retrievers', ['Labrador Retriever','Golden Retriever','Cocker Spaniel','Springer Spaniel','Vizsla','Weimaraner','Pointer','Setter','Gundog / retriever (other / mix)']],
+  ['Scent hounds', ['Beagle','Basset Hound','Bloodhound','Dachshund','Coonhound','Scent hound (other / mix)']],
+  ['Sighthounds', ['Greyhound','Whippet','Italian Greyhound','Saluki','Lurcher','Sighthound (other / mix)']],
+  ['Terriers', ['Jack Russell Terrier','Staffordshire Bull Terrier','West Highland Terrier','Yorkshire Terrier','Border Terrier','Miniature Schnauzer','Terrier (other / mix)']],
+  ['Guardian & working', ['Rottweiler','Doberman','Boxer','Bernese Mountain Dog','Great Dane','Mastiff','Cane Corso','Guardian / working breed (other / mix)']],
+  ['Nordic & sled', ['Siberian Husky','Alaskan Malamute','Samoyed','Shiba Inu','Nordic / sled breed (other / mix)']],
+  ['Poodles & doodles', ['Poodle','Labradoodle','Cockapoo','Cavapoo','Goldendoodle','Bichon Frise','Poodle / doodle (other / mix)']],
+  ['Flat-faced (brachycephalic)', ['French Bulldog','English Bulldog','Pug','Shih Tzu','Boston Terrier','Flat-faced breed (other / mix)']],
+  ['Toy & companion', ['Chihuahua','Pomeranian','Cavalier King Charles Spaniel','Maltese','Havanese','Toy / companion breed (other / mix)']],
+  ['Mixed / other', ['Mixed / crossbreed (unsure of type)','Other / not listed']],
+];
+function breedSelectHTML(current){
+  const known = new Set();
+  let groups = '';
+  BREED_OPTIONS.forEach(([group, breeds])=>{
+    groups += `<optgroup label="${escapeAttr(group)}">`;
+    breeds.forEach(bd=>{ known.add(bd); groups += `<option value="${escapeAttr(bd)}"${bd===current?' selected':''}>${escapeHtml(bd)}</option>`; });
+    groups += '</optgroup>';
+  });
+  const legacy = (current && !known.has(current)) ? `<option value="${escapeAttr(current)}" selected>${escapeHtml(current)}</option>` : '';
+  return `<option value="">Breed (optional)</option>` + legacy + groups;
 }
 
 /* ============================================================
@@ -1351,7 +1380,7 @@ function renderForm(existing){
     <span class="field-label">The basics</span>
     <div class="row" style="margin-bottom:14px">
       <div><label class="visually-hidden" for="f-name">Name</label><input id="f-name" type="text" placeholder="Name (e.g. Biscuit)" maxlength="24" value="${escapeAttr(draft.name)}"></div>
-      <div><label class="visually-hidden" for="f-breed">Breed</label><input id="f-breed" type="text" placeholder="Breed (optional)" maxlength="40" value="${escapeAttr(draft.breed)}"></div>
+      <div><label class="visually-hidden" for="f-breed">Breed</label><select id="f-breed">${breedSelectHTML(draft.breed)}</select></div>
     </div>
     <span class="field-label" style="color:var(--ink-soft)">Age</span>
     <div class="field-help">Sets the developmental stage — and keeps the plan in step as your dog grows.</div>
