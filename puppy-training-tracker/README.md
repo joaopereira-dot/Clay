@@ -54,6 +54,9 @@ their own device.
   drawn from European practice — so plans deepen as the basics land. Two extra
   situation-aware modules cover **reading calming signals** (Turid Rugaas) and
   **cooperative care & handling** (RSPCA).
+- **Daily journal & streaks.** Log dated entries per dog — quick tags, an
+  optional mood, and notes — shown as a timeline with current and longest
+  day-streaks. Entries sync live for shared dogs.
 - **Automatic progress saving** (see [Data & privacy](#data--privacy)).
 - **Optional live shared tracking** — several people can track the same dog in
   real time via a share code (see [Shared tracking](#shared-tracking-optional-via-firebase)).

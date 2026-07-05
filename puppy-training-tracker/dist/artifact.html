@@ -317,6 +317,30 @@
   .bn-text{ font-size:13.5px; color:var(--ink); line-height:1.55; }
   .bn-caution{ margin-top:11px; font-size:12.5px; color:#7a3f2b; background:rgba(156,82,56,0.09); border:1px solid rgba(156,82,56,0.25); border-radius:9px; padding:9px 12px; }
 
+  /* ---------- Journal + streaks ---------- */
+  .journal{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; margin:18px 0 8px; }
+  .jr-head{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:13px; }
+  .jr-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--brick); }
+  .jr-streaks{ display:flex; align-items:center; gap:9px; }
+  .streak{ font-family:'IBM Plex Mono',monospace; font-size:12px; background:rgba(193,145,46,0.18); color:var(--gold-deep); padding:4px 11px; border-radius:999px; white-space:nowrap; }
+  .streak-off{ background:var(--paper-dark); color:var(--ink-soft); }
+  .jr-best{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); }
+  .jr-log{ width:100%; margin-bottom:14px; }
+  .jr-empty{ font-size:13px; color:var(--ink-soft); line-height:1.55; }
+  .jr-list{ display:flex; flex-direction:column; gap:10px; }
+  .jr-entry{ position:relative; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:11px 34px 12px 13px; }
+  .jr-date{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--gold-deep); margin-bottom:5px; }
+  .jr-mood{ font-size:14px; }
+  .jr-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:5px; }
+  .jr-tag{ font-size:11px; background:var(--paper-dark); color:var(--ink-soft); padding:2px 9px; border-radius:999px; }
+  .jr-note{ font-size:13.5px; color:var(--ink); line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+  .jr-del{ position:absolute; top:8px; right:9px; background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:13px; line-height:1; padding:4px; }
+  .jr-del:hover{ color:var(--brick); }
+  .jr-more{ width:100%; margin-top:12px; }
+  .jr-moods{ display:flex; gap:8px; }
+  .jr-mood-btn{ font-size:22px; background:var(--paper); border:1px solid var(--line); border-radius:10px; width:50px; height:46px; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .jr-mood-btn.on{ border-color:var(--gold); background:rgba(193,145,46,0.16); }
+
   /* ---------- Today's focus ---------- */
   .today{ background:var(--forest); color:var(--paper); border-radius:var(--radius); padding:18px 20px; margin:18px 0 8px; }
   .today-head{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
@@ -456,7 +480,7 @@ const Sync = (() => {
   async function share(dog){
     if(!ready) await init();
     const ref = col().doc();                          // random, unguessable id = the share code
-    await ref.set(Object.assign(serializeProfile(dog), { progress: dog.progress||{} }));
+    await ref.set(Object.assign(serializeProfile(dog), { progress: dog.progress||{}, journal: dog.journal||[] }));
     listen(ref.id);
     return ref.id;
   }
@@ -490,9 +514,19 @@ const Sync = (() => {
     try{ await col().doc(code).set(serializeProfile(dog), {merge:true}); onStatus('live'); }
     catch(e){ console.warn('pushProfile', e); onStatus('off'); }
   }
+  async function pushJournalAdd(code, entry){
+    if(!ready) return;
+    try{ await col().doc(code).update('journal', firebase.firestore.FieldValue.arrayUnion(entry), 'updatedAt', ts()); onStatus('live'); }
+    catch(e){ console.warn('pushJournalAdd', e); onStatus('off'); }
+  }
+  async function pushJournalSet(code, arr){
+    if(!ready) return;
+    try{ await col().doc(code).update('journal', arr, 'updatedAt', ts()); onStatus('live'); }
+    catch(e){ console.warn('pushJournalSet', e); onStatus('off'); }
+  }
 
   return { getConfig, configured, saveConfig, init, share, join, listen, stop, pushProgress, pushProfile,
-           isReady:()=>ready,
+           pushJournalAdd, pushJournalSet, isReady:()=>ready,
            setHandlers(remote,status){ if(remote)onRemote=remote; if(status)onStatus=status; } };
 })();
 
@@ -1182,6 +1216,9 @@ function renderDogView(dog, app){
   // --- Today's focus ---
   app.appendChild(renderToday(dog, plan));
 
+  // --- Journal + streaks ---
+  app.appendChild(renderJournal(dog));
+
   // --- Overall progress ---
   const ov = overallProgress(dog, plan);
   const overall = el('div','overall');
@@ -1331,6 +1368,121 @@ function renderBreedNote(bp){
   if (bp.caution) html += `<div class="bn-caution">⚠️ ${bp.caution}</div>`;
   n.innerHTML = html;
   return n;
+}
+
+/* ============================================================
+   Journal + streaks
+   ============================================================ */
+const JOURNAL_TAGS = [['training','Training'],['socialisation','Socialisation'],['potty','Potty'],['walk','Walk'],['play','Play'],['handling','Handling / grooming'],['vet','Vet'],['win','Win 🎉']];
+const JOURNAL_TAG_LABELS = Object.fromEntries(JOURNAL_TAGS);
+const JOURNAL_MOODS = ['😀','🙂','😐','😟'];
+const jrExpanded = {};   // per-dog "show all" UI state (kept out of saved data)
+
+function addDaysISO(iso, n){ const d=parseDateLocal(iso); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dayDiff(a, b){ return Math.round((parseDateLocal(b).getTime()-parseDateLocal(a).getTime())/86400000); }
+function fmtJournalDate(iso){
+  const t=todayISO(); if(iso===t) return 'Today'; if(iso===addDaysISO(t,-1)) return 'Yesterday';
+  const d=parseDateLocal(iso); return d ? d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}) : iso;
+}
+function computeStreak(dog){
+  const set = new Set((dog.journal||[]).map(e=>e.date));
+  if(!set.size) return { current:0, longest:0 };
+  const dates=[...set].sort();
+  let longest=1, run=1;
+  for(let i=1;i<dates.length;i++){ run = (dayDiff(dates[i-1],dates[i])===1) ? run+1 : 1; longest=Math.max(longest,run); }
+  const today=todayISO(), yest=addDaysISO(today,-1);
+  let anchor = set.has(today) ? today : (set.has(yest) ? yest : null);
+  let current=0;
+  if(anchor){ current=1; let d=anchor; while(set.has(addDaysISO(d,-1))){ current++; d=addDaysISO(d,-1); } }
+  return { current, longest, loggedToday:set.has(today) };
+}
+
+function renderJournal(dog){ const card=el('div','journal'); card.id='journalCard'; card.appendChild(journalInner(dog)); return card; }
+function journalInner(dog){
+  const wrap=el('div');
+  const st=computeStreak(dog);
+  const entries=(dog.journal||[]).slice().sort((a,b)=> (b.date+(b.ts||'')).localeCompare(a.date+(a.ts||'')));
+  const streakHtml = st.current>0
+    ? `<span class="streak">🔥 ${st.current}-day streak</span>${st.longest>st.current?`<span class="jr-best">best ${st.longest}</span>`:''}`
+    : `<span class="streak streak-off">No streak yet</span>`;
+  wrap.innerHTML = `<div class="jr-head"><span class="jr-eyebrow">Journal</span><span class="jr-streaks">${streakHtml}</span></div>`;
+  const logBtn=el('button','btn primary jr-log', st.loggedToday ? '＋ Add another entry' : '＋ Log today');
+  logBtn.onclick=()=>openLogModal(dog);
+  wrap.appendChild(logBtn);
+  if(!entries.length){
+    wrap.appendChild(el('div','jr-empty','No entries yet — log a training session, a walk, or a win to start your streak.'));
+  } else {
+    const list=el('div','jr-list');
+    const shown = jrExpanded[dog.id] ? entries : entries.slice(0,4);
+    shown.forEach(e=> list.appendChild(journalEntryEl(dog,e)));
+    wrap.appendChild(list);
+    if(entries.length>4 && !jrExpanded[dog.id]){
+      const more=el('button','btn ghost jr-more',`Show all ${entries.length} entries`);
+      more.onclick=()=>{ jrExpanded[dog.id]=true; refreshJournal(dog); };
+      wrap.appendChild(more);
+    }
+  }
+  return wrap;
+}
+function journalEntryEl(dog, e){
+  const row=el('div','jr-entry');
+  const tags=(e.tags||[]).map(t=>`<span class="jr-tag">${escapeHtml(JOURNAL_TAG_LABELS[t]||t)}</span>`).join('');
+  row.innerHTML = `<div class="jr-date">${fmtJournalDate(e.date)}${e.mood?` <span class="jr-mood">${e.mood}</span>`:''}</div>`
+    + (tags?`<div class="jr-tags">${tags}</div>`:'')
+    + (e.note?`<div class="jr-note">${escapeHtml(e.note)}</div>`:'');
+  const del=el('button','jr-del','✕'); del.setAttribute('aria-label','Delete entry'); del.title='Delete entry';
+  del.onclick=()=>deleteEntry(dog, e.id);
+  row.appendChild(del);
+  return row;
+}
+function refreshJournal(dog){ const card=document.getElementById('journalCard'); if(card){ card.innerHTML=''; card.appendChild(journalInner(dog)); } }
+
+function addEntry(dog, entry){
+  if(!dog.journal) dog.journal=[];
+  dog.journal.push(entry);
+  save();
+  if(dog.shareCode) Sync.pushJournalAdd(dog.shareCode, entry);
+  refreshJournal(dog);
+}
+function deleteEntry(dog, id){
+  if(!confirm('Delete this journal entry?')) return;
+  dog.journal=(dog.journal||[]).filter(e=>e.id!==id);
+  save();
+  if(dog.shareCode) Sync.pushJournalSet(dog.shareCode, dog.journal);
+  refreshJournal(dog);
+}
+function openLogModal(dog){
+  const node=el('div');
+  const tags=[]; let mood='';
+  node.innerHTML = `
+    <h2>Log for ${escapeHtml(dog.name)}</h2>
+    <p>Jot down what you did — a session, a walk, a breakthrough. Logging keeps your streak alive.</p>
+    <span class="field-label" style="display:block;margin-bottom:8px">Date</span>
+    <input id="jr-date" type="date" max="${todayISO()}" value="${todayISO()}">
+    <span class="field-label" style="display:block;margin:15px 0 8px">What did you do?</span>
+    <div class="chips" id="jr-tagchips"></div>
+    <span class="field-label" style="display:block;margin:15px 0 8px">How did it go? (optional)</span>
+    <div class="jr-moods" id="jr-moods"></div>
+    <textarea id="jr-note" style="margin-top:15px" placeholder="Notes — what went well, what to work on next…"></textarea>
+    <div class="modal-err" id="jr-err"></div>`;
+  const chips=node.querySelector('#jr-tagchips');
+  JOURNAL_TAGS.forEach(([id,label])=>{ const c=el('button','chip'); c.type='button'; c.textContent=label;
+    c.onclick=()=>{ const i=tags.indexOf(id); if(i>=0)tags.splice(i,1); else tags.push(id); c.classList.toggle('on'); }; chips.appendChild(c); });
+  const moods=node.querySelector('#jr-moods');
+  JOURNAL_MOODS.forEach(m=>{ const bt=el('button','jr-mood-btn'); bt.type='button'; bt.textContent=m;
+    bt.onclick=()=>{ mood=(mood===m?'':m); [...moods.children].forEach(x=>x.classList.remove('on')); if(mood)bt.classList.add('on'); }; moods.appendChild(bt); });
+  const acts=el('div','modal-actions');
+  const saveB=el('button','btn primary','Save entry');
+  const cancelB=el('button','btn ghost','Cancel'); cancelB.onclick=closeModal;
+  saveB.onclick=()=>{
+    const date=node.querySelector('#jr-date').value||todayISO();
+    const note=node.querySelector('#jr-note').value.trim();
+    if(!note && !tags.length && !mood){ node.querySelector('#jr-err').textContent='Add a note, a tag, or how it went.'; return; }
+    addEntry(dog, { id:uid(), date, ts:new Date().toISOString(), tags:[...tags], mood, note });
+    closeModal();
+  };
+  acts.appendChild(saveB); acts.appendChild(cancelB); node.appendChild(acts);
+  openModal(node);
 }
 
 // Congratulatory banner shown once when a dog's age crosses into a new stage.
@@ -1505,11 +1657,12 @@ function applyRemote(code, data){
   dog.birthDate = data.birthDate || (data.ageValue!=null ? birthFromAge(data.ageValue, data.ageUnit) : dog.birthDate);
   dog.known = data.known||[]; dog.goals = data.goals||[]; dog.challenges = data.challenges||[];
   dog.progress = data.progress||{};
+  if (Array.isArray(data.journal)) dog.journal = data.journal;
   saveLocal();
   const editing = !!document.querySelector('.form-intro');
   if (dog.id===state.activeId && !editing){
     if (before !== sig(dog)) renderApp();          // profile/plan changed → full re-render
-    else { syncCheckboxes(dog); refreshCounts(); }  // progress only → gentle update
+    else { syncCheckboxes(dog); refreshCounts(); refreshJournal(dog); }  // progress/journal → gentle update
   }
   renderTabs();
 }
@@ -1632,10 +1785,10 @@ function openJoinModal(prefill){
     try{
       const data = await Sync.join(code);
       let dog = state.dogs.find(d=>d.shareCode===code);
-      if (!dog){ dog = { id:uid(), shareCode:code, progress:{}, known:[], goals:[], challenges:[] }; state.dogs.push(dog); }
+      if (!dog){ dog = { id:uid(), shareCode:code, progress:{}, known:[], goals:[], challenges:[], journal:[] }; state.dogs.push(dog); }
       Object.assign(dog, { name:data.name||'Shared dog', breed:data.breed||'',
         birthDate: data.birthDate || (data.ageValue!=null ? birthFromAge(data.ageValue, data.ageUnit) : (dog.birthDate||todayISO())),
-        known:data.known||[], goals:data.goals||[], challenges:data.challenges||[], progress:data.progress||{} });
+        known:data.known||[], goals:data.goals||[], challenges:data.challenges||[], progress:data.progress||{}, journal:Array.isArray(data.journal)?data.journal:[] });
       state.activeId = dog.id; await saveLocal();
       closeModal(); renderTabs(); renderApp(); window.scrollTo({top:0,behavior:'smooth'});
     }catch(e){ joinB.textContent='Join'; joinB.disabled=false; err.textContent = humanErr(e); }
@@ -1708,7 +1861,7 @@ async function boot(){
     if (raw){ const parsed = JSON.parse(raw); if (parsed && Array.isArray(parsed.dogs)){
       state = parsed;
       state.dogs.forEach(d=>{
-        if(!d.progress)d.progress={}; if(!d.known)d.known=[]; if(!d.goals)d.goals=[]; if(!d.challenges)d.challenges=[];
+        if(!d.progress)d.progress={}; if(!d.known)d.known=[]; if(!d.goals)d.goals=[]; if(!d.challenges)d.challenges=[]; if(!Array.isArray(d.journal))d.journal=[];
         // Migrate legacy static age → a birth date, so the stage can advance over time.
         if(!d.birthDate) d.birthDate = (d.ageValue!==undefined && d.ageValue!=='') ? birthFromAge(d.ageValue, d.ageUnit) : todayISO();
       });
