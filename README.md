@@ -9,6 +9,13 @@ top-level folders** so they don't mix, and each project carries its own README.
 | --- | --- | --- |
 | 🐾 Field Journal — Personalized Puppy Training | [`puppy-training-tracker/`](./puppy-training-tracker/) | A single-file web app that builds a personalized, source-backed training plan for each of your dogs and tracks your progress. See its [README](./puppy-training-tracker/README.md). |
 
+## Conventions
+
+This repo follows lightweight version-control practices — [Conventional
+Commits](https://www.conventionalcommits.org/), [Semantic
+Versioning](https://semver.org/) with `vX.Y.Z` tags, and a
+[`CHANGELOG.md`](./CHANGELOG.md). See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
 ## This branch
 
 Branch: **`claude/puppy-training-tracker-ta3u1u`**
