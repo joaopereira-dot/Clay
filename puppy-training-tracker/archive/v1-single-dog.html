@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Field Journal — Puppy Training Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ECE2CC;
+    --paper-dark:#E1D3B2;
+    --ink:#2B2A28;
+    --ink-soft:#5B5647;
+    --gold:#C1912E;
+    --gold-deep:#96701F;
+    --forest:#33463A;
+    --forest-deep:#22301F;
+    --brick:#9C5238;
+    --line:#c9b98f;
+    --card:#F4ECDA;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(51,70,58,0.06), transparent),
+      var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  .noise{
+    position:fixed; inset:0; pointer-events:none; opacity:0.035; z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  header{
+    position:relative; z-index:1;
+    max-width:760px; margin:0 auto; padding:48px 24px 20px;
+    text-align:left;
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--gold-deep); font-weight:500;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-optical-sizing:auto;
+    font-weight:600;
+    font-size:clamp(32px, 6vw, 46px);
+    line-height:1.05;
+    margin:8px 0 6px;
+    color:var(--forest-deep);
+  }
+  .sub{
+    color:var(--ink-soft); font-size:15px; max-width:52ch; margin:0 0 20px;
+  }
+  .name-row{
+    display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap;
+  }
+  .name-row input{
+    font-family:'IBM Plex Mono', monospace;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:7px 10px;
+    font-size:13px;
+    color:var(--ink);
+  }
+  .name-row label{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft);}
+
+  .trail-wrap{
+    position:relative; z-index:1;
+    max-width:760px; margin:0 auto; padding:28px 24px 0;
+  }
+
+  .overall{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 20px;
+    margin-bottom:30px;
+    display:flex; align-items:center; gap:18px;
+  }
+  .overall .paw{
+    width:44px; height:44px; flex:none;
+  }
+  .overall-text{ flex:1; }
+  .overall-text .label{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px;
+  }
+  .bar-track{
+    height:9px; background:var(--paper-dark); border-radius:6px; overflow:hidden; margin-top:6px;
+  }
+  .bar-fill{
+    height:100%; background:linear-gradient(90deg, var(--gold-deep), var(--gold));
+    border-radius:6px; transition:width .5s ease;
+  }
+  .overall-num{
+    font-family:'Fraunces', serif; font-weight:600; font-size:28px; color:var(--forest-deep);
+    min-width:64px; text-align:right;
+  }
+  .save-status{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft);
+    text-align:right; margin-top:10px; min-height:14px; opacity:0.75;
+  }
+
+  .path{
+    position:relative;
+    padding-left:34px;
+    border-left:2px dashed var(--line);
+    margin-left:14px;
+  }
+
+  .week{
+    position:relative;
+    margin-bottom:26px;
+  }
+  .week-stop{
+    position:absolute; left:-46px; top:2px;
+    width:30px; height:30px;
+    border-radius:50%;
+    background:var(--card);
+    border:2px solid var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600;
+    color:var(--gold-deep);
+    transition: all .3s ease;
+  }
+  .week-stop.complete{
+    background:var(--forest); border-color:var(--forest); color:var(--paper);
+  }
+
+  .week-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .week-head{
+    padding:16px 18px;
+    cursor:pointer;
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .week-head:hover{ background:rgba(193,145,46,0.06); }
+  .week-title-block{ display:flex; flex-direction:column; gap:3px; }
+  .week-num{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--brick);
+  }
+  .week-title{
+    font-family:'Fraunces', serif; font-weight:600; font-size:19px; color:var(--forest-deep);
+  }
+  .week-focus{ font-size:13px; color:var(--ink-soft); }
+  .week-progress-mini{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--gold-deep);
+    white-space:nowrap;
+  }
+  .chevron{
+    width:16px; height:16px; flex:none;
+    transition:transform .25s ease;
+    color:var(--ink-soft);
+  }
+  .week-card.open .chevron{ transform:rotate(180deg); }
+
+  .week-body{
+    max-height:0; overflow:hidden; transition:max-height .35s ease;
+  }
+  .week-card.open .week-body{ max-height:1400px; }
+  .week-body-inner{
+    padding:0 18px 20px;
+    border-top:1px solid var(--line);
+  }
+  .section-label{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--ink-soft);
+    margin:16px 0 8px;
+  }
+  ul.tasklist{ list-style:none; margin:0; padding:0; }
+  .task{
+    display:flex; align-items:flex-start; gap:10px;
+    padding:7px 0;
+    font-size:14.5px;
+    line-height:1.4;
+    cursor:pointer;
+  }
+  .task input{ display:none; }
+  .box{
+    width:18px; height:18px; flex:none; margin-top:1px;
+    border:1.5px solid var(--gold-deep);
+    border-radius:5px;
+    display:flex; align-items:center; justify-content:center;
+    transition:all .15s ease;
+  }
+  .task input:checked + .box{
+    background:var(--forest); border-color:var(--forest);
+  }
+  .box svg{ width:11px; height:11px; opacity:0; transition:opacity .15s ease; }
+  .task input:checked + .box svg{ opacity:1; }
+  .task-text{ transition:color .15s ease, opacity .15s ease; }
+  .task input:checked ~ .task-text{ color:var(--ink-soft); text-decoration:line-through; opacity:0.75; }
+
+  .milestone{
+    background:var(--paper-dark);
+    border-radius:9px;
+    padding:9px 12px;
+    margin-bottom:6px;
+  }
+  .milestone .task{ padding:0; }
+  .milestone .box{ border-color:var(--brick); }
+  .milestone input:checked + .box{ background:var(--brick); border-color:var(--brick); }
+
+  .footer-note{
+    max-width:760px; margin:36px auto 0; padding:0 24px;
+    font-size:12.5px; color:var(--ink-soft); line-height:1.6;
+    position:relative; z-index:1;
+  }
+  .reset-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; background:none; border:1px solid var(--line);
+    color:var(--ink-soft); padding:7px 12px; border-radius:8px; cursor:pointer;
+    margin-top:14px;
+  }
+  .reset-btn:hover{ border-color:var(--brick); color:var(--brick); }
+
+  @media (max-width:480px){
+    .path{ padding-left:26px; margin-left:8px; }
+    .week-stop{ left:-38px; width:26px; height:26px; font-size:11px; }
+    .overall{ flex-wrap:wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<header>
+  <div class="eyebrow">Weeks 11 → 15 · Golden Retriever</div>
+  <h1>Field Journal</h1>
+  <p class="sub">A running log of your puppy's socialization window. Tap a week to open it, check things off as you go — progress is saved automatically.</p>
+  <div class="name-row">
+    <label for="pupname">Puppy's name</label>
+    <input id="pupname" type="text" placeholder="e.g. Biscuit" maxlength="24">
+  </div>
+</header>
+
+<div class="trail-wrap">
+
+  <div class="overall">
+    <svg class="paw" viewBox="0 0 64 64" fill="none">
+      <ellipse cx="32" cy="42" rx="17" ry="14" fill="#C1912E"/>
+      <ellipse cx="14" cy="24" rx="7" ry="9" fill="#C1912E"/>
+      <ellipse cx="50" cy="24" rx="7" ry="9" fill="#C1912E"/>
+      <ellipse cx="24" cy="12" rx="6" ry="8" fill="#C1912E"/>
+      <ellipse cx="40" cy="12" rx="6" ry="8" fill="#C1912E"/>
+    </svg>
+    <div class="overall-text">
+      <div class="label">Overall progress</div>
+      <div class="bar-track"><div class="bar-fill" id="overallBar" style="width:0%"></div></div>
+    </div>
+    <div class="overall-num" id="overallNum">0%</div>
+  </div>
+
+  <div class="path" id="pathContainer"></div>
+
+</div>
+
+<div class="footer-note">
+  <div>Vaccination status changes what's safe for public socialization — confirm outdoor/public milestones with your vet before checking them off. Progress is stored privately on this device/account and won't be visible to anyone else.</div>
+  <button class="reset-btn" id="resetBtn">Reset all progress</button>
+  <div class="save-status" id="saveStatus"></div>
+</div>
+
+<script>
+const STORAGE_KEY = "puppy-tracker-v1";
+const NAME_KEY = "puppy-tracker-name";
+
+const weeks = [
+  {
+    num: 11,
+    title: "Foundations",
+    focus: "Name recognition · crate comfort · house training routine",
+    tasks: [
+      "Take outside every 45–60 min, plus after waking/eating/play",
+      "Feed meals in the crate with door open",
+      "Close crate door 5–10 min while in the room",
+      "Name recognition reps: 10x, 3 times a day",
+      "Daily handling: paws, ears, mouth, tail",
+      "Carry/stroller outings to see the world safely",
+      "Bite inhibition: yelp + brief attention withdrawal"
+    ],
+    milestones: [
+      "Responds to name 7/10 times",
+      "Tolerates crate door closed for 10 min without distress",
+      "One accident-free stretch of 2+ hours indoors"
+    ]
+  },
+  {
+    num: 12,
+    title: "First Cues & Leash Feel",
+    focus: "Sit · leash exposure · expanding socialization",
+    tasks: [
+      "Sit: lure up and back, mark on rear-down, several reps/day",
+      "Let puppy drag a light leash indoors (supervised)",
+      "Add mild distractions to name/eye-contact practice",
+      "Host 1–2 calm, vaccinated dogs for a visit",
+      "Introduce 3+ new textures/surfaces at home",
+      "Play low-volume thunder/vacuum/fireworks sounds during meals",
+      "Extend alone-in-crate time to 20–30 min"
+    ],
+    milestones: [
+      "Sits on cue (lured) 8/10 times",
+      "Walks calmly on a dragging leash indoors",
+      "Settles in crate 20+ min alone",
+      "Comfortable with 3+ new surfaces"
+    ]
+  },
+  {
+    num: 13,
+    title: "Down & First Outings",
+    focus: "Down · loose-leash indoors · vet-cleared outings",
+    tasks: [
+      "Down: lure nose down and forward from a sit",
+      "Clip leash, walk a few steps indoors/yard rewarding closeness",
+      "Recall foundation: crouch, clap, reward big — safe area only",
+      "Confirm vaccine timing with vet before new outings",
+      "Visit a friend's clean yard or quiet park (low traffic)",
+      "Practice 'wait' at doorways and before the food bowl"
+    ],
+    milestones: [
+      "Down on cue 5/10 times",
+      "Walks 5–10 steps on leash without freezing or wild pulling",
+      "Comes when called from 5–10 ft in low-distraction area",
+      "Waits 2–3 seconds at door/bowl before release"
+    ]
+  },
+  {
+    num: 14,
+    title: "Duration & Distraction",
+    focus: "Hold cues · leave it · real-world exposure",
+    tasks: [
+      "Sit/down: build to 3–5 second hold before reward",
+      "Leave it: closed-fist treat, mark when they back off",
+      "Sidewalk leash practice with a mild distraction nearby",
+      "Car ride to a fun (non-vet) location",
+      "Meet 1–2 new calm people per day",
+      "Distant exposure to umbrellas, hats, bikes, skateboards",
+      "Practice 5 min alone in the house (you step outside)"
+    ],
+    milestones: [
+      "Holds sit or down for 5 seconds",
+      "'Leave it' works on a hand treat 7/10 times",
+      "Walks past one mild distraction without losing focus",
+      "Tolerates 5 min alone without excessive distress"
+    ]
+  },
+  {
+    num: 15,
+    title: "Chaining & Confidence",
+    focus: "Real recall · behavior chains · public confidence",
+    tasks: [
+      "Recall on a 10–15 ft long line with mild distraction",
+      "Chain: sit → wait → leave it → down, reward at the end",
+      "Aim for a full block/yard loop of mostly loose-leash walking",
+      "First moderately busy walk (if vet-cleared)",
+      "Continue new dog/people visits",
+      "Gentle exposure to stairs/elevators if relevant",
+      "Teach 'place': settle on a mat near mild activity"
+    ],
+    milestones: [
+      "Recalls from 10–15 ft on a long line with one distraction",
+      "Completes a 3-behavior chain for one reward",
+      "Loose-leash walks ~80% of a short route",
+      "Settles on a mat for 2–3 minutes near mild activity"
+    ]
+  }
+];
+
+let state = {}; // { "11-task-0": true, ... }
+
+function allItemIds(){
+  const ids = [];
+  weeks.forEach(w => {
+    w.tasks.forEach((_, i) => ids.push(`${w.num}-task-${i}`));
+    w.milestones.forEach((_, i) => ids.push(`${w.num}-mile-${i}`));
+  });
+  return ids;
+}
+
+function computeWeekProgress(w){
+  const ids = [...w.tasks.map((_,i)=>`${w.num}-task-${i}`), ...w.milestones.map((_,i)=>`${w.num}-mile-${i}`)];
+  const done = ids.filter(id => state[id]).length;
+  return { done, total: ids.length };
+}
+
+function render(){
+  const container = document.getElementById('pathContainer');
+  container.innerHTML = '';
+  weeks.forEach((w, idx) => {
+    const { done, total } = computeWeekProgress(w);
+    const complete = done === total;
+
+    const weekEl = document.createElement('div');
+    weekEl.className = 'week';
+
+    const stop = document.createElement('div');
+    stop.className = 'week-stop' + (complete ? ' complete' : '');
+    stop.textContent = w.num;
+    weekEl.appendChild(stop);
+
+    const card = document.createElement('div');
+    card.className = 'week-card';
+    card.dataset.open = 'false';
+
+    const head = document.createElement('div');
+    head.className = 'week-head';
+    head.innerHTML = `
+      <div class="week-title-block">
+        <div class="week-num">Week ${w.num}</div>
+        <div class="week-title">${w.title}</div>
+        <div class="week-focus">${w.focus}</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="week-progress-mini">${done}/${total}</div>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </div>
+    `;
+    head.addEventListener('click', () => {
+      const isOpen = card.classList.toggle('open');
+      card.dataset.open = isOpen ? 'true' : 'false';
+    });
+
+    const body = document.createElement('div');
+    body.className = 'week-body';
+    const inner = document.createElement('div');
+    inner.className = 'week-body-inner';
+
+    inner.innerHTML += `<div class="section-label">Daily / weekly practice</div>`;
+    const taskUl = document.createElement('ul');
+    taskUl.className = 'tasklist';
+    w.tasks.forEach((text, i) => {
+      const id = `${w.num}-task-${i}`;
+      taskUl.appendChild(makeTaskItem(id, text, false));
+    });
+    inner.appendChild(taskUl);
+
+    inner.innerHTML += `<div class="section-label">Milestones to hit by end of week</div>`;
+    w.milestones.forEach((text, i) => {
+      const id = `${w.num}-mile-${i}`;
+      const wrap = document.createElement('div');
+      wrap.className = 'milestone';
+      wrap.appendChild(makeTaskItem(id, text, true));
+      inner.appendChild(wrap);
+    });
+
+    body.appendChild(inner);
+    card.appendChild(head);
+    card.appendChild(body);
+    weekEl.appendChild(card);
+    container.appendChild(weekEl);
+
+    // auto-open the first incomplete week
+    if (idx === weeks.findIndex(ww => { const p = computeWeekProgress(ww); return p.done < p.total; })) {
+      card.classList.add('open');
+    }
+  });
+
+  updateOverall();
+}
+
+function makeTaskItem(id, text, isMilestone){
+  const label = document.createElement('label');
+  label.className = 'task';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.checked = !!state[id];
+  input.addEventListener('change', () => {
+    state[id] = input.checked;
+    saveState();
+    render();
+  });
+  const box = document.createElement('div');
+  box.className = 'box';
+  box.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>`;
+  const span = document.createElement('span');
+  span.className = 'task-text';
+  span.textContent = text;
+  label.appendChild(input);
+  label.appendChild(box);
+  label.appendChild(span);
+  return label;
+}
+
+function updateOverall(){
+  const ids = allItemIds();
+  const done = ids.filter(id => state[id]).length;
+  const pct = ids.length ? Math.round((done / ids.length) * 100) : 0;
+  document.getElementById('overallBar').style.width = pct + '%';
+  document.getElementById('overallNum').textContent = pct + '%';
+}
+
+let storageWorking = true; // becomes false if persistent storage isn't available in this environment
+
+function setStatus(msg, temporary){
+  const el = document.getElementById('saveStatus');
+  if (!el) return;
+  el.textContent = msg;
+  if (temporary){
+    clearTimeout(setStatus._t);
+    setStatus._t = setTimeout(() => { el.textContent = storageWorking ? '' : 'Progress is kept for this session only.'; }, 1800);
+  }
+}
+
+async function loadState(){
+  try {
+    if (window.storage && typeof window.storage.get === 'function') {
+      const result = await window.storage.get(STORAGE_KEY, false);
+      if (result && result.value) {
+        state = JSON.parse(result.value);
+      }
+    } else {
+      storageWorking = false;
+    }
+  } catch (e) {
+    // Key may simply not exist yet on first run — that's fine, not a failure.
+    state = state || {};
+  }
+  try {
+    if (window.storage && typeof window.storage.get === 'function') {
+      const nameResult = await window.storage.get(NAME_KEY, false);
+      if (nameResult && nameResult.value) {
+        document.getElementById('pupname').value = nameResult.value;
+      }
+    }
+  } catch(e) { /* no name saved yet, ignore */ }
+
+  if (!storageWorking) setStatus('Progress is kept for this session only.');
+  render();
+}
+
+async function saveState(){
+  if (!storageWorking) return;
+  try {
+    const result = await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
+    if (result) {
+      setStatus('Saved', true);
+    } else {
+      storageWorking = false;
+      setStatus('Progress is kept for this session only.');
+    }
+  } catch (e) {
+    storageWorking = false;
+    setStatus('Progress is kept for this session only.');
+  }
+}
+
+document.getElementById('pupname').addEventListener('change', async (e) => {
+  if (!storageWorking) return;
+  try {
+    await window.storage.set(NAME_KEY, e.target.value, false);
+  } catch(err) { /* silently ignore — name is cosmetic */ }
+});
+
+document.getElementById('resetBtn').addEventListener('click', async () => {
+  if (!confirm('Reset all checked progress? This cannot be undone.')) return;
+  state = {};
+  await saveState();
+  render();
+});
+
+loadState();
+</script>
+</body>
+</html>
