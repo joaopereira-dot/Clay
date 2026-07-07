@@ -339,6 +339,15 @@
   .bn-text{ font-size:13.5px; color:var(--ink); line-height:1.55; }
   .bn-caution{ margin-top:11px; font-size:12.5px; color:#7a3f2b; background:rgba(156,82,56,0.09); border:1px solid rgba(156,82,56,0.25); border-radius:9px; padding:9px 12px; }
 
+  /* ---------- Plan / Journal sub-tabs ---------- */
+  .subtabs{ display:flex; gap:5px; background:var(--paper-dark); border:1px solid var(--line); border-radius:999px; padding:4px; margin:22px 0 6px; }
+  .subtab{ flex:1; font-family:'IBM Plex Mono', monospace; font-size:13px; padding:10px 14px; border-radius:999px; border:none; background:none;
+    color:var(--ink-soft); cursor:pointer; transition:all .18s ease; -webkit-tap-highlight-color:transparent; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .subtab:hover{ color:var(--ink); }
+  .subtab.active{ background:var(--forest); color:var(--paper); }
+  .subtab:focus-visible{ outline:2px solid var(--gold-deep); outline-offset:2px; }
+  .subtab-streak{ font-size:12px; }
+
   /* ---------- Journal + streaks ---------- */
   .journal{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; margin:18px 0 8px; }
   .jr-head{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:13px; }
@@ -1207,16 +1216,47 @@ function renderApp(){
   renderDogView(dog, app);
 }
 
-function renderDogView(dog, app){
-  const w = ageWeeks(dog);
-  const stage = getStage(w);
-  const plan = buildPlan(dog);
+let dogTab = 'plan';   // active sub-tab within a dog view: 'plan' | 'journal'
+function switchDogTab(tab){ if(dogTab===tab) return; dogTab=tab; renderApp(); window.scrollTo({top:0,behavior:'smooth'}); }
 
-  // --- Stage-advance nudge (age is derived from birth date, so the stage can change over time) ---
+function renderDogView(dog, app){
+  const stage = getStage(ageWeeks(dog));
+
+  // --- Stage-advance nudge (shown above the tabs) ---
   if (!state.stageSeen) state.stageSeen = {};
   const prevSeen = state.stageSeen[dog.id];
   if (prevSeen && prevSeen !== stage.key) app.appendChild(renderStageNudge(dog, stage));
   state.stageSeen[dog.id] = stage.key; saveLocal();
+
+  // --- Sub-tabs: Plan | Journal ---
+  const st = computeStreak(dog);
+  const bar = el('div','subtabs');
+  const planBtn = el('button','subtab'+(dogTab==='plan'?' active':'')); planBtn.textContent='Plan';
+  const jrBtn = el('button','subtab'+(dogTab==='journal'?' active':'')); jrBtn.innerHTML = 'Journal'+(st.current>0?` <span class="subtab-streak">🔥${st.current}</span>`:'');
+  planBtn.onclick=()=>switchDogTab('plan'); jrBtn.onclick=()=>switchDogTab('journal');
+  bar.appendChild(planBtn); bar.appendChild(jrBtn);
+  app.appendChild(bar);
+
+  // --- Active tab content ---
+  const content = el('div'); content.id='dogTabContent';
+  app.appendChild(content);
+  if (dogTab==='journal') fillJournalTab(dog, content); else fillPlanTab(dog, content);
+
+  // --- Sharing + profile (shown under both tabs) ---
+  app.appendChild(renderSharePanel(dog));
+  const actions = el('div','profile-actions');
+  const edit = el('button','btn','Edit '+escapeHtml(dog.name)+'’s profile'); edit.onclick=()=>renderForm(dog);
+  const addAnother = el('button','btn ghost','+ Add another dog'); addAnother.onclick=()=>renderForm(null);
+  const del = el('button','btn ghost danger','Remove '+escapeHtml(dog.name)); del.onclick=()=>removeDog(dog);
+  actions.appendChild(edit); actions.appendChild(addAnother); actions.appendChild(del);
+  app.appendChild(actions);
+}
+
+function fillJournalTab(dog, app){ app.appendChild(renderJournal(dog)); }
+
+function fillPlanTab(dog, app){
+  const stage = getStage(ageWeeks(dog));
+  const plan = buildPlan(dog);
 
   // --- Stage briefing ---
   const brief = el('div','briefing');
@@ -1239,9 +1279,6 @@ function renderDogView(dog, app){
   // --- Today's focus ---
   app.appendChild(renderToday(dog, plan));
 
-  // --- Journal + streaks ---
-  app.appendChild(renderJournal(dog));
-
   // --- Overall progress ---
   const ov = overallProgress(dog, plan);
   const overall = el('div','overall');
@@ -1262,17 +1299,6 @@ function renderDogView(dog, app){
     app.appendChild(el('div','plan-heading', `Already got it · maintain`));
     plan.mastered.forEach(({m,score}) => app.appendChild(renderModule(dog, m, score, false, true)));
   }
-
-  // --- Sharing / live sync ---
-  app.appendChild(renderSharePanel(dog));
-
-  // --- Profile actions ---
-  const actions = el('div','profile-actions');
-  const edit = el('button','btn','Edit '+escapeHtml(dog.name)+'’s profile'); edit.onclick=()=>renderForm(dog);
-  const addAnother = el('button','btn ghost','+ Add another dog'); addAnother.onclick=()=>renderForm(null);
-  const del = el('button','btn ghost danger','Remove '+escapeHtml(dog.name)); del.onclick=()=>removeDog(dog);
-  actions.appendChild(edit); actions.appendChild(addAnother); actions.appendChild(del);
-  app.appendChild(actions);
 }
 
 function renderModule(dog, m, score, openFirst, mastered){
@@ -1458,7 +1484,13 @@ function journalEntryEl(dog, e){
   row.appendChild(del);
   return row;
 }
-function refreshJournal(dog){ const card=document.getElementById('journalCard'); if(card){ card.innerHTML=''; card.appendChild(journalInner(dog)); } }
+function refreshJournal(dog){ const card=document.getElementById('journalCard'); if(card){ card.innerHTML=''; card.appendChild(journalInner(dog)); } updateJournalSubtab(dog); }
+function updateJournalSubtab(dog){
+  const bar=document.querySelector('.subtabs'); if(!bar || dog.id!==state.activeId) return;
+  const jr=bar.children[1]; if(!jr) return;
+  const st=computeStreak(dog);
+  jr.innerHTML = 'Journal'+(st.current>0?` <span class="subtab-streak">🔥${st.current}</span>`:'');
+}
 
 function addEntry(dog, entry){
   if(!dog.journal) dog.journal=[];

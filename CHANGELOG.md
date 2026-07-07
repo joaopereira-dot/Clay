@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- The dog view is split into **Plan** and **Journal** sub-tabs to cut scrolling.
+  The Journal tab shows the current streak in its label; sharing and profile
+  actions remain visible under both tabs.
 
 ## [1.1.0] - 2026-07-04
 ### Added
