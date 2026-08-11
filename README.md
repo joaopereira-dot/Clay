@@ -8,7 +8,7 @@ top-level folders** so they don't mix, and each project carries its own README.
 | Project | Folder | Description |
 | --- | --- | --- |
 | 🐾 Field Journal — Personalized Puppy Training | [`puppy-training-tracker/`](./puppy-training-tracker/) | A single-file web app that builds a personalized, source-backed training plan for each of your dogs and tracks your progress. See its [README](./puppy-training-tracker/README.md). |
-| 💰 Ledger — Personal Finance Planner | [`finance-planner/`](./finance-planner/) | A local-first, YNAB-style budgeting app: expenses & categories, investments, goals, and rule-based advice from your financial profile. Data stays in your browser, with optional end-to-end-encrypted sync. See its [README](./finance-planner/README.md). |
+| 💰 Ledger — Personal Finance Planner | [`finance-planner/`](./finance-planner/) | A local-first, installable (PWA) budgeting app: flexible budgets, manual/CSV/quick-add transactions, recurring bills, investments, goals, multi-currency, household sharing, and priority-weighted advice. Data stays in your browser, with optional end-to-end-encrypted sync and an opt-in AI coach. See its [README](./finance-planner/README.md). |
 
 ## Conventions
 

@@ -1,0 +1,16 @@
+{
+  "name": "Ledger — Personal Finance Planner",
+  "short_name": "Ledger",
+  "description": "A private, local-first budgeting and financial-planning app. Track expenses, budgets, investments, recurring bills and goals, with tailored advice. Your data stays in your browser.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ECE2CC",
+  "theme_color": "#2F5D45",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

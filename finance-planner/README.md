@@ -1,78 +1,98 @@
 # 💰 Ledger — Personal Finance Planner
 
-A private, **local-first** budgeting and financial-planning web app in the
-spirit of YNAB. Track expenses, categorize spending, monitor investments, set
-goals, and get **tailored, rule-based advice** derived from your own financial
-profile — all in a single static HTML file, with your data kept in your browser.
+A private, **local-first**, installable budgeting and financial-planning web app
+in the spirit of YNAB / Monarch. Track expenses, plan budgets, monitor
+investments and recurring bills, set goals, and get **tailored advice** derived
+from your own financial profile — in a single static file, with your data kept
+in your browser.
 
 > Part of the **Clay** workspace. Like every project here it lives isolated in
 > its own top-level folder ([`finance-planner/`](.)) and touches nothing else in
 > the repo.
 
+This build was tailored to a specific set of choices (see
+[Design decisions](#design-decisions)): **flexible plan-&-track budgeting**,
+**manual + CSV + quick-add** entry, **household sharing**, **full recurring
+tracking**, **multi-currency**, an **installable PWA**, and an **optional,
+opt-in AI coach**.
+
 ## What it does
 
 | Area | Details |
 | --- | --- |
-| **Dashboard** | Net worth, liquid cash, portfolio value and savings rate at a glance; 6-month income-vs-spending chart; top spending categories; the two most important advice items. |
-| **Budget** | Category-based, envelope-style monthly budgeting. Plan an amount per category, grouped (Essentials / Lifestyle / …), and watch spending fill each bar. Flip between months. |
-| **Transactions** | Log expenses and income with date, category, account and note. Search and filter by month or category. Balances on the linked account stay in step automatically. |
-| **Investments** | Holdings with quantity, cost basis and current price → portfolio value, unrealized P/L, and an allocation donut by asset class. |
-| **Goals** | Savings goals with target, amount saved and optional target date. Ledger computes the monthly pace needed to finish on time. |
-| **Profile** | Your income, age, dependents, risk tolerance, emergency-fund target, savings-rate goal, debt, currency and accounts. Everything that personalizes the advice. |
-| **Advice** | A rule-based engine that reads your profile + goals + live data and surfaces prioritized guidance: emergency-fund adequacy, savings rate, over-budget categories, spending concentration, high-interest debt, investment allocation vs. risk tolerance, idle cash, and goal pacing. |
-| **Data** | JSON export/import backup, reset, and optional end-to-end-encrypted cloud sync. |
+| **Dashboard** | Net worth, liquid cash, portfolio value and savings rate; a 6-month income-vs-spending chart; top spending; upcoming recurring items; and the top advice items. |
+| **Budget** | Flexible **plan & track** (Monarch-style) — set an expected amount per category and watch spending fill each bar, with an "income − plan" readout. No forced envelopes. Grouped categories, month switcher. |
+| **Transactions** | Log expenses/income with date, category, account, note and (optionally) *who* spent. **Three entry methods**: manual, **CSV/statement import** (column mapping, sign handling, auto-categorisation, duplicate detection), and **quick-add templates**. **Split** a transaction across multiple categories. Linked account balances stay in step automatically. |
+| **Recurring** | Bills, subscriptions and regular income with any cadence (every N days/weeks/months/years), next-due dates, monthly-equivalent totals, a 45-day upcoming list, and **"Post"** — which logs a real transaction and advances the next date. Overdue items are flagged. |
+| **Investments** | Holdings with quantity, cost basis and current price → portfolio value, unrealized P/L, and an allocation donut by asset class. Per-holding currency. |
+| **Goals** | Savings goals with target, saved amount and optional date → progress and the monthly pace needed to finish on time. |
+| **Profile** | Income, age, dependents, risk tolerance, emergency-fund and savings-rate targets, debt, **advice priorities**, **household members**, accounts, base currency and **exchange rates**. |
+| **Advice** | A rule-based engine reading your profile + goals + live data, **ordered by the priorities you pick** (debt payoff / investing & FIRE / everyday budgeting / big goals). Plus an **optional AI coaching** panel. |
+| **Data** | JSON export/import, reset, **install-as-app**, **end-to-end-encrypted cloud sync**, and **AI-coaching** settings. |
 
 The advice is educational and rule-based — not a substitute for a licensed
 financial professional.
 
-## Running it
+## Running & installing
 
-No build step, no dependencies. It's one static file.
+No build step, no dependencies — one static file (plus a service worker and
+manifest for offline/install).
 
 - **Locally:** open [`index.html`](./index.html) in any modern browser.
 - **Hosted:** serve the folder from any static host.
+- **Install (PWA):** when served over HTTPS (e.g. GitHub Pages), use **Data →
+  Install app** (or your browser's install button) to add Ledger to your phone's
+  home screen or your desktop. It then works **offline** — the service worker
+  ([`sw.js`](./sw.js)) caches the app shell; your data was always local anyway.
 
 ## Hosting the app
 
-Because it's a static single file, hosting is trivial and free:
+Because it's a static bundle, hosting is trivial and free:
 
-- **GitHub Pages** — enable Pages for this repo and the app is served at
-  `https://<user>.github.io/<repo>/finance-planner/`. This matches how the rest
-  of the Clay workspace is published.
-- **Netlify / Cloudflare Pages / Vercel** — drag-and-drop or point at the repo;
-  set the publish directory to `finance-planner/`.
-- **Any web server or even a USB stick** — it's just HTML/CSS/JS.
+- **GitHub Pages** — serve the repo and the app is at
+  `https://<user>.github.io/<repo>/finance-planner/`. Installability and offline
+  work here because Pages is HTTPS.
+- **Netlify / Cloudflare Pages / Vercel** — publish directory `finance-planner/`.
+- **Any web server** — it's just HTML/CSS/JS + a manifest + a service worker.
 
-There is no backend to run, no server to patch, and no secrets to manage for the
-core app.
+No backend to run, no server to patch, no secrets for the core app.
 
 ## Where your data lives
 
-This was the central design decision (financial data is sensitive), so it's
-worth being explicit:
+The central design decision (financial data is sensitive):
 
 - **By default: local-only.** All data is stored in your browser via
-  `localStorage` and **never leaves your device**. No account, no tracking, no
-  server sees your finances. The header pill shows `Local · this device`.
-- **Backups are in your hands.** The Data tab exports a full JSON snapshot you
-  can store anywhere (or drop into a private cloud drive), and imports it back
-  on another browser.
-- **Claude Artifact aware.** If the app runs inside a Claude Artifact, it
-  transparently uses the account-synced Artifact storage API instead of
-  `localStorage`.
+  `localStorage` and **never leaves your device**. No account, no tracking. The
+  header pill shows `Local · this device`.
+- **Backups in your hands.** The Data tab exports/imports a full JSON snapshot.
+- **Claude Artifact aware.** Inside a Claude Artifact it uses the account-synced
+  Artifact storage API instead of `localStorage`.
 
-### Optional: end-to-end-encrypted cloud sync
+### Household sharing = optional end-to-end-encrypted sync
 
-If you want the same vault on multiple devices, Ledger ships an **optional** sync
-layer that is **off until you configure it**. When enabled, your entire dataset
-is **encrypted in the browser** (AES-GCM; key derived from a passphrase you
-choose via PBKDF2) *before* upload — the sync server only ever stores an opaque
-ciphertext blob and never sees your passphrase. Losing the passphrase means the
-data can't be recovered, which is the point.
-
-Setup is a one-time Supabase project you control. Full instructions and the SQL
-schema are in [`sync/README.md`](./sync/README.md) and
+Sharing with a partner and syncing across your own devices are the **same
+mechanism**: an **optional** encrypted vault that is **off until you configure
+it**. Your entire dataset is **encrypted in the browser** (AES-GCM; key derived
+from a passphrase via PBKDF2) *before* upload — the sync server only stores
+ciphertext and never sees your passphrase. Anyone using the same project URL +
+Vault ID + passphrase shares the vault. Setup (a one-time Supabase project you
+control) and the SQL schema are in [`sync/README.md`](./sync/README.md) and
 [`sync/schema.sql`](./sync/schema.sql).
+
+`Push` uploads this device's data; `Pull` replaces this device's data with the
+cloud copy — a deliberate, manual last-write-wins model. Sync at the end of a
+session on one device before switching to the other.
+
+### Optional AI coaching (opt-in, off by default)
+
+The **only** feature that can send data off-device. When you enable it in
+**Data → AI coaching** and supply **your own API key** (Anthropic or an
+OpenAI-compatible provider), the Advice tab can send an **anonymized numeric
+snapshot** — no names, account names or transaction notes — for narrative
+coaching. **Preview exactly what would be sent** from the Advice tab before it
+sends anything. Your key is stored locally only and is excluded from sync
+uploads; calls go directly from your browser to the provider and are billed to
+your own account.
 
 Decision guide:
 
@@ -80,7 +100,30 @@ Decision guide:
 | --- | --- |
 | Maximum privacy, one device | Default local-only (do nothing). |
 | Backups / moving browsers | Data-tab JSON export & import. |
-| Same vault on phone + laptop | Optional encrypted cloud sync. |
+| Same vault on phone + laptop, or share with a partner | Optional encrypted cloud sync. |
+| Narrative, AI-written coaching | Optional AI panel with your own key. |
+
+## Multi-currency
+
+Set a **base currency** in Profile. Each account and holding can be in its own
+currency; you maintain a small **exchange-rate table** by hand (Profile →
+Exchange rates), which keeps the app fully offline — nothing is fetched online.
+All aggregates (net worth, budgets, spending, advice) convert to the base
+currency; individual items also show their native amount.
+
+## Design decisions
+
+This build reflects these explicit choices:
+
+- **Budgeting:** flexible *plan & track*, not strict zero-based envelopes.
+- **Entry:** manual, CSV/statement import, and quick-add templates + splits.
+- **Users:** household (multiple people) via the shared encrypted vault, with
+  optional per-transaction *who* tags.
+- **Recurring:** full tracking (cadence, due dates, forecast, post-to-ledger).
+- **Advice focus:** chosen in-app in Profile; weights which advice surfaces first.
+- **Currency:** multi-currency with manual rates.
+- **Platform:** responsive, installable PWA for phone + desktop, offline-capable.
+- **AI:** optional, opt-in, bring-your-own-key; rule-based engine otherwise.
 
 ## Data model
 
@@ -88,38 +131,42 @@ A single JSON document (also what export/import moves around):
 
 ```
 { version, profile, settings, accounts[], categories[], txns[],
-  investments[], goals[], sync, meta }
+  investments[], goals[], recurring[], templates[], sync, ai, meta }
 ```
 
 - `profile` — income, age, dependents, riskTolerance, emergencyMonths,
-  savingsRateGoal, debtTotal, debtApr, debtMonthly.
-- `accounts[]` — `{ name, type, balance }`; `credit`/`loan` count as liabilities.
-- `categories[]` — `{ name, group, budget, color }`.
-- `txns[]` — `{ date, type: expense|income, amount, categoryId, accountId, note }`.
-- `investments[]` — `{ name, ticker, assetClass, quantity, costBasis, price }`.
+  savingsRateGoal, debt*, `advicePriorities[]`, `members[]`.
+- `settings` — `baseCurrency`, `locale`, `rates{}` (currency → units of base),
+  `budgetMode`.
+- `accounts[]` — `{ name, type, balance, currency }`; `credit`/`loan` are liabilities.
+- `categories[]` — `{ name, group, budget, color }` (budget in base currency).
+- `txns[]` — `{ date, type, amount, currency, categoryId, accountId, note,
+  memberId?, splits?[] }`.
+- `investments[]` — `{ name, ticker, assetClass, quantity, costBasis, price, currency }`.
 - `goals[]` — `{ name, target, saved, targetDate }`.
-- `sync` — cloud-sync config (URL, anon key, table, vaultId); the passphrase is
-  **never** persisted.
+- `recurring[]` — `{ name, type, amount, currency, categoryId, accountId,
+  cadence{unit,every}, nextDue, active, memberId? }`.
+- `templates[]` — quick-add presets.
+- `sync` — cloud-sync config; the passphrase is **never** persisted.
+- `ai` — provider/model/enabled; the API key stays local and is stripped from sync uploads.
+
+Loading old/partial data runs through a `migrate()` step that backfills new
+fields (including the v1 single-currency → base-currency migration).
 
 ## How the advice engine works
 
-`buildAdvice()` in `index.html` derives figures from your data (via the `Sel`
-selectors) and applies transparent rules, each producing a prioritized card
-(`alert` → `warn` → `good`). Examples:
-
-- **Emergency fund** — liquid cash ÷ average monthly spend vs. your target
-  months.
-- **Savings rate** — `(income − spending) / income` vs. your goal.
-- **Allocation** — growth-asset share vs. a `110 − age` glide path adjusted for
-  your risk tolerance.
-- **Debt** — flags balances at ≥ 7% APR as a payoff priority.
-- **Goal pacing** — remaining ÷ months left → required monthly contribution.
-
-Every rule reads only local data, so the guidance updates the instant you edit
-anything.
+`buildAdvice()` derives figures via the `Sel` selectors (all converting to the
+base currency) and applies transparent rules, each producing a card
+(`alert` → `warn` → `good`), then **re-ordered to surface your chosen
+priorities first**. Rules cover: emergency fund, savings rate, over-budget
+categories, spending concentration, recurring-cost load, overdue recurring
+items, high-interest debt, allocation vs. a risk-adjusted `110 − age` glide
+path, idle cash, and goal pacing.
 
 ## Tech
 
-Vanilla HTML/CSS/JS, no framework, no external network calls for the core app
-(charts are hand-rolled inline SVG). The Web Crypto API powers the optional sync
-encryption. Fonts fall back to system fonts, so it works fully offline.
+Vanilla HTML/CSS/JS, no framework. Core app makes **no network calls** (charts
+are hand-rolled inline SVG; fonts fall back to system fonts, so it works fully
+offline). The Web Crypto API powers sync encryption; a service worker enables
+offline/install. The only outbound calls are the two opt-in features you
+configure yourself (cloud sync, AI coaching).

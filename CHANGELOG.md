@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-11
+### Added
+- **Ledger** (`finance-planner/`): major feature expansion tailoring the app to
+  a real workflow, informed by a review of current products (YNAB, Monarch,
+  Copilot, Actual Budget) and 2026 best-practice sources.
+  - **Recurring** tab: bills/subscriptions/income with any cadence, due dates,
+    monthly-equivalent totals, upcoming forecast, and "Post" (logs a real
+    transaction and advances the next date). Overdue items flagged.
+  - **CSV / bank-statement import** with column mapping, sign handling,
+    auto-categorisation and duplicate detection.
+  - **Quick-add templates** and **split transactions** across categories.
+  - **Household**: members + optional per-transaction "who" tags; sharing via
+    the encrypted vault.
+  - **Multi-currency**: per-account/holding currency, a base currency, and a
+    manually-maintained (offline) exchange-rate table; all aggregates convert.
+  - **Advice priorities** chosen in Profile now weight which advice surfaces
+    first; new recurring-cost/overdue advice rules.
+  - **Installable PWA**: web manifest, service worker, offline app-shell cache,
+    and an in-app install button.
+  - **Optional, opt-in AI coaching** (bring-your-own key; Anthropic or
+    OpenAI-compatible) that sends only an anonymized numeric snapshot, with an
+    in-app preview of exactly what is sent. Off by default.
+### Changed
+- Budget tab reframed as flexible **plan & track** (income − plan readout).
+- Data model bumped to v2 with a `migrate()` step backfilling new fields and the
+  v1 single-currency → base-currency migration.
+
 ## [1.2.0] - 2026-08-11
 ### Added
 - **Ledger — Personal Finance Planner** (`finance-planner/`): a new, isolated
@@ -44,7 +71,8 @@ First documented release of the **Puppy Training Tracker** (`puppy-training-trac
   invite link).
 - Offline-first storage, responsive layout, and a self-contained Artifact build.
 
-[Unreleased]: https://github.com/joaopereira-dot/Clay/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/joaopereira-dot/Clay/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/joaopereira-dot/Clay/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/joaopereira-dot/Clay/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/joaopereira-dot/Clay/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/joaopereira-dot/Clay/releases/tag/v1.0.0
