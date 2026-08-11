@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ledger — Personal Finance Planner</title>
+<meta name="description" content="A private, local-first budgeting and financial-planning app. Track expenses, budgets, investments, recurring bills and goals across multiple currencies, share with your household, and get tailored advice. Your data stays in your browser.">
+<meta name="theme-color" content="#2F5D45">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ledger">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
+<!--
+  Ledger — Personal Finance Planner  (v2)
+  ============================================================================
+  A local-first, installable (PWA) single-file web app. No build step and no
+  dependencies are required: open this file in any browser or host it
+  statically (e.g. GitHub Pages). See README.md for full documentation.
+
+  TAILORED BUILD
+  --------------
+  Budgeting: flexible "plan & track" (not forced envelopes).
+  Entry: manual, CSV/statement import, and quick-add templates + splits.
+  Household: shared encrypted vault + optional per-transaction "who" tags.
+  Recurring: bills/subscriptions with cadence, due dates, month forecast,
+             and "mark paid -> post transaction".
+  Multi-currency: per-account/holding currency + a base currency with
+             manually-maintained exchange rates (stays fully offline).
+  Advice: rule-based, weighted by priorities you pick in your Profile; plus an
+             OPTIONAL, opt-in "AI coaching" panel (bring your own API key).
+
+  PRIVACY / DATA
+  --------------
+  All data lives in YOUR browser (localStorage) and is never sent anywhere by
+  default. Back it up with the JSON export in the Data tab. Optional
+  end-to-end-encrypted cloud sync (also the household-sharing mechanism) is OFF
+  until you configure it in Data > Cloud sync (see sync/README.md). The optional
+  AI panel is the ONLY feature that can send data off-device, is off by default,
+  and shows you exactly what would be sent before it sends anything.
+-->
+<style>
+  :root{
+    --paper:#ECE2CC; --paper-2:#E4D7B9; --card:#F6EFDE; --card-2:#F0E7D0;
+    --ink:#2B2A28; --ink-soft:#615B4C; --ink-faint:#8A8069;
+    --line:#D3C29A; --line-soft:#E0D2B0;
+    --gold:#C1912E; --gold-deep:#8F6A18;
+    --forest:#2F5D45; --forest-soft:#3C7757; --forest-deep:#22301F;
+    --brick:#A44A32; --brick-soft:#C56A50; --sky:#3A6A86;
+    --radius:14px; --radius-sm:9px;
+    --shadow:0 1px 2px rgba(43,42,40,.05),0 6px 20px rgba(43,42,40,.06);
+    --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1100px 560px at 12% -8%, rgba(47,93,69,.06), transparent),
+      radial-gradient(900px 500px at 100% 0%, rgba(193,145,46,.07), transparent),
+      var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    min-height:100vh; line-height:1.5; padding-bottom:calc(96px + var(--safe-b));
+  }
+  h1,h2,h3{font-family:'Fraunces','Georgia',serif;font-weight:600;letter-spacing:.2px;margin:0;}
+  a{color:var(--gold-deep);}
+  button{font-family:inherit;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 18px;}
+
+  header.top{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,rgba(236,226,204,.96),rgba(236,226,204,.86));backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px);}
+  .top-inner{display:flex;align-items:center;gap:14px;padding:12px 18px;max-width:1080px;margin:0 auto;}
+  .brand{display:flex;align-items:center;gap:11px;}
+  .mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(160deg,var(--forest),var(--forest-soft));color:#F6EFDE;font-family:'Fraunces',serif;font-weight:700;font-size:19px;box-shadow:var(--shadow);}
+  .brand h1{font-size:20px;line-height:1;}
+  .brand small{display:block;color:var(--ink-faint);font-size:11.5px;font-family:'IBM Plex Mono',monospace;letter-spacing:.3px;margin-top:3px;}
+  .top-spacer{flex:1;}
+  .sync-pill{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 11px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);}
+  .dot.on{background:var(--forest-soft);} .dot.warn{background:var(--gold);}
+
+  nav.tabs{display:flex;gap:4px;overflow-x:auto;padding:8px 18px 0;max-width:1080px;margin:0 auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  nav.tabs::-webkit-scrollbar{display:none;}
+  nav.tabs button{border:none;background:transparent;color:var(--ink-soft);padding:9px 13px 12px;font-size:14px;font-weight:600;cursor:pointer;border-bottom:2.5px solid transparent;white-space:nowrap;border-radius:8px 8px 0 0;}
+  nav.tabs button:hover{color:var(--ink);background:rgba(255,255,255,.35);}
+  nav.tabs button.active{color:var(--forest);border-bottom-color:var(--gold);}
+
+  main{padding-top:20px;}
+  section.tab{display:none;animation:fade .25s ease;}
+  section.tab.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .grid{display:grid;gap:14px;}
+  .cols-2{grid-template-columns:repeat(2,1fr);} .cols-3{grid-template-columns:repeat(3,1fr);} .cols-4{grid-template-columns:repeat(4,1fr);}
+  @media(max-width:820px){.cols-3,.cols-4{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:520px){.cols-2,.cols-3,.cols-4{grid-template-columns:1fr;}}
+  .card{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 17px;}
+  .card h2{font-size:16px;margin-bottom:2px;}
+  .card .sub{color:var(--ink-faint);font-size:12.5px;margin-bottom:12px;}
+  .section-head{display:flex;align-items:baseline;gap:12px;margin:4px 2px 14px;flex-wrap:wrap;}
+  .section-head h2{font-size:22px;}
+  .section-head p{color:var(--ink-soft);font-size:13.5px;margin:0;}
+
+  .stat{display:flex;flex-direction:column;gap:4px;}
+  .stat .label{font-size:12px;color:var(--ink-faint);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+  .stat .val{font-family:'Fraunces',serif;font-size:26px;font-weight:600;line-height:1.05;}
+  .stat .hint{font-size:12px;color:var(--ink-soft);}
+  .pos{color:var(--forest);} .neg{color:var(--brick);} .muted{color:var(--ink-faint);}
+
+  .btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.12s;}
+  .btn:hover{background:var(--card-2);}
+  .btn.primary{background:linear-gradient(160deg,var(--forest),var(--forest-soft));color:#F6EFDE;border-color:transparent;}
+  .btn.primary:hover{filter:brightness(1.06);}
+  .btn.gold{background:linear-gradient(160deg,var(--gold),var(--gold-deep));color:#2B2415;border-color:transparent;}
+  .btn.ghost{background:transparent;}
+  .btn.danger{color:var(--brick);border-color:var(--brick-soft);}
+  .btn.danger:hover{background:rgba(164,74,50,.08);}
+  .btn.sm{padding:5px 10px;font-size:12.5px;} .btn.icon{padding:6px 8px;}
+  .btn[disabled]{opacity:.5;cursor:not-allowed;}
+  .row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+
+  label.field{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:var(--ink-soft);}
+  input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink);background:#FBF6E9;border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;width:100%;}
+  input:focus,select:focus,textarea:focus{outline:2px solid rgba(193,145,46,.35);outline-offset:1px;border-color:var(--gold);}
+  textarea{resize:vertical;min-height:60px;}
+  .form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  @media(max-width:520px){.form-grid{grid-template-columns:1fr;}}
+
+  .tbl{width:100%;border-collapse:collapse;font-size:13.5px;}
+  .tbl th{text-align:left;color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--line);}
+  .tbl td{padding:9px 10px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+  .tbl tr:last-child td{border-bottom:none;}
+  .tbl .num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .tbl-scroll{overflow-x:auto;}
+
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--card-2);border:1px solid var(--line-soft);cursor:default;}
+  .chip.click{cursor:pointer;} .chip.click:hover{background:var(--paper-2);}
+  .chip .swatch{width:8px;height:8px;border-radius:50%;}
+  .chip.sel{background:var(--forest);color:#F6EFDE;border-color:transparent;}
+  .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.4px;}
+  .badge.income{background:rgba(47,93,69,.13);color:var(--forest);}
+  .badge.expense{background:rgba(164,74,50,.12);color:var(--brick);}
+  .badge.due{background:rgba(193,145,46,.16);color:var(--gold-deep);}
+
+  .bar{height:9px;border-radius:99px;background:var(--paper-2);overflow:hidden;}
+  .bar > span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--forest-soft),var(--forest));}
+  .bar.over > span{background:linear-gradient(90deg,var(--brick-soft),var(--brick));}
+  .bar.warn > span{background:linear-gradient(90deg,var(--gold),var(--gold-deep));}
+
+  .advice{border-left:4px solid var(--line);background:var(--card);border-radius:0 var(--radius) var(--radius) 0;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow);}
+  .advice.good{border-left-color:var(--forest-soft);}
+  .advice.warn{border-left-color:var(--gold);}
+  .advice.alert{border-left-color:var(--brick);}
+  .advice h3{font-size:15px;margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .advice p{margin:0;font-size:13.5px;color:var(--ink-soft);}
+  .advice .tag{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:5px;background:var(--card-2);color:var(--ink-faint);}
+
+  .modal-back{position:fixed;inset:0;background:rgba(43,42,40,.42);backdrop-filter:blur(2px);display:none;place-items:center;z-index:80;padding:16px;}
+  .modal-back.open{display:grid;}
+  .modal{background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.28);max-width:560px;width:100%;max-height:92vh;overflow:auto;}
+  .modal.wide{max-width:760px;}
+  .modal header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--paper);z-index:1;}
+  .modal header h2{font-size:18px;}
+  .modal .body{padding:18px;display:flex;flex-direction:column;gap:14px;}
+  .modal footer{padding:14px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--paper);flex-wrap:wrap;}
+  .x{border:none;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:var(--ink-faint);}
+
+  .empty{text-align:center;color:var(--ink-faint);padding:34px 16px;font-size:14px;}
+  .empty .big{font-size:30px;margin-bottom:6px;}
+  .hr{height:1px;background:var(--line-soft);margin:14px 0;}
+  .kv{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;padding:5px 0;}
+  .kv .k{color:var(--ink-soft);} .kv .v{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;}
+  .pill-group{display:flex;flex-wrap:wrap;gap:7px;}
+  .toast{position:fixed;bottom:calc(20px + var(--safe-b));left:50%;transform:translateX(-50%) translateY(20px);background:var(--forest-deep);color:#F6EFDE;padding:10px 18px;border-radius:10px;font-size:13.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:.25s;z-index:100;max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .note{font-size:12.5px;color:var(--ink-faint);background:var(--card-2);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;}
+  .swatch{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle;}
+  svg text{font-family:'IBM Plex Mono',monospace;}
+  .foot{color:var(--ink-faint);font-size:12px;text-align:center;padding:26px 0 8px;}
+  code{background:var(--card-2);padding:1px 5px;border-radius:5px;font-family:'IBM Plex Mono',monospace;font-size:.92em;}
+  .split-row{display:grid;grid-template-columns:1fr 120px 34px;gap:8px;align-items:end;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <div class="mark">₺</div>
+      <div><h1>Ledger</h1><small id="brandSub">Personal Finance Planner</small></div>
+    </div>
+    <div class="top-spacer"></div>
+    <span class="sync-pill" id="syncPill" title="Where your data lives — click to open Data" onclick="switchTab('data')">
+      <span class="dot" id="syncDot"></span><span id="syncText">Local · this device</span>
+    </span>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="dashboard" class="active">Dashboard</button>
+    <button data-tab="budget">Budget</button>
+    <button data-tab="transactions">Transactions</button>
+    <button data-tab="recurring">Recurring</button>
+    <button data-tab="investments">Investments</button>
+    <button data-tab="goals">Goals</button>
+    <button data-tab="profile">Profile</button>
+    <button data-tab="advice">Advice</button>
+    <button data-tab="data">Data</button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <section class="tab active" id="tab-dashboard"></section>
+  <section class="tab" id="tab-budget"></section>
+  <section class="tab" id="tab-transactions"></section>
+  <section class="tab" id="tab-recurring"></section>
+  <section class="tab" id="tab-investments"></section>
+  <section class="tab" id="tab-goals"></section>
+  <section class="tab" id="tab-profile"></section>
+  <section class="tab" id="tab-advice"></section>
+  <section class="tab" id="tab-data"></section>
+  <p class="foot">Ledger · local-first personal finance · your data stays in your browser</p>
+</main>
+
+<div class="modal-back" id="modalBack">
+  <div class="modal" id="modal">
+    <header><h2 id="modalTitle">—</h2><button class="x" id="modalX">&times;</button></header>
+    <div class="body" id="modalBody"></div>
+    <footer id="modalFoot"></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   0. Utilities
+   ========================================================================== */
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayISO = ()=> new Date().toISOString().slice(0,10);
+const monthKey = d => (d||todayISO()).slice(0,7);
+const nowMonth = ()=> monthKey(todayISO());
+function addMonths(mk,n){ const [y,m]=mk.split('-').map(Number); const d=new Date(y,m-1+n,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function monthLabel(mk){ const [y,m]=mk.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString(undefined,{month:'short',year:'2-digit'}); }
+function addToDate(iso,unit,every){ const d=new Date(iso+'T00:00:00'); every=+every||1;
+  if(unit==='day')d.setDate(d.getDate()+every); else if(unit==='week')d.setDate(d.getDate()+7*every);
+  else if(unit==='month')d.setMonth(d.getMonth()+every); else if(unit==='year')d.setFullYear(d.getFullYear()+every);
+  return d.toISOString().slice(0,10); }
+function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/86400000); }
+
+/* ==========================================================================
+   1. Store — Artifact storage API → localStorage → in-memory
+   ========================================================================== */
+const Store = (()=>{
+  const KEY='ledger.finance.v1';
+  const hasArtifact = typeof window!=='undefined' && window.claude && window.claude.storage;
+  let mem=null;
+  return {
+    mode: hasArtifact?'artifact':(()=>{try{localStorage.setItem('__t','1');localStorage.removeItem('__t');return 'local';}catch(e){return 'memory';}})(),
+    async load(){ try{
+      if(this.mode==='artifact'){ const v=await window.claude.storage.getItem(KEY); return v?JSON.parse(v):null; }
+      if(this.mode==='local'){ const v=localStorage.getItem(KEY); return v?JSON.parse(v):null; }
+      return mem; }catch(e){ console.warn('load failed',e); return null; } },
+    async save(obj){ const s=JSON.stringify(obj); try{
+      if(this.mode==='artifact'){ await window.claude.storage.setItem(KEY,s); }
+      else if(this.mode==='local'){ localStorage.setItem(KEY,s); }
+      else { mem=obj; } }catch(e){ console.warn('save failed',e); mem=obj; } }
+  };
+})();
+
+/* ==========================================================================
+   2. State — model, defaults, migration, persistence, currency
+   ========================================================================== */
+const DEFAULT_CATEGORIES = [
+  ['Housing','Essentials',1400,'#2F5D45'],['Groceries','Essentials',450,'#3C7757'],
+  ['Utilities','Essentials',180,'#4E7C63'],['Transport','Essentials',220,'#5E866F'],
+  ['Insurance','Essentials',160,'#6C8C77'],['Health','Essentials',120,'#7A9382'],
+  ['Dining Out','Lifestyle',200,'#C1912E'],['Entertainment','Lifestyle',120,'#CBA24A'],
+  ['Shopping','Lifestyle',150,'#D3B063'],['Subscriptions','Lifestyle',60,'#A44A32'],
+  ['Travel','Lifestyle',150,'#C56A50'],['Misc','Lifestyle',80,'#8A8069'],
+];
+const ADVICE_PRIORITIES = [
+  ['debt','Debt payoff'],['invest','Investing & FIRE'],['budget','Everyday budgeting & savings'],['goals','Big goals'],
+];
+function seed(){
+  const cats = DEFAULT_CATEGORIES.map(([name,group,budget,color])=>({id:uid(),name,group,budget,color}));
+  const base='USD';
+  return {
+    version:2,
+    profile:{ name:'', monthlyIncome:0, age:30, dependents:0, riskTolerance:'moderate',
+              emergencyMonths:6, savingsRateGoal:20, debtTotal:0, debtApr:0, debtMonthly:0,
+              advicePriorities:['budget'], members:[] },
+    settings:{ baseCurrency:base, locale:navigator.language||'en-US', rates:{[base]:1}, budgetMode:'flexible' },
+    accounts:[ {id:uid(),name:'Checking',type:'checking',balance:0,currency:base},
+               {id:uid(),name:'Savings',type:'savings',balance:0,currency:base} ],
+    categories:cats,
+    txns:[], investments:[], goals:[], recurring:[], templates:[],
+    sync:{ enabled:false, provider:'supabase', url:'', anonKey:'', table:'ledger_vault', vaultId:'', lastSyncedAt:null },
+    ai:{ enabled:false, provider:'anthropic', apiKey:'', model:'' },
+    meta:{ createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }
+  };
+}
+// Deep-ensure new fields exist when loading older/partial data.
+function migrate(loaded){
+  const d=seed();
+  const S=Object.assign({},d,loaded);
+  S.profile=Object.assign({},d.profile,loaded.profile||{});
+  if(!Array.isArray(S.profile.advicePriorities)) S.profile.advicePriorities=['budget'];
+  if(!Array.isArray(S.profile.members)) S.profile.members=[];
+  S.settings=Object.assign({},d.settings,loaded.settings||{});
+  // migrate v1 single "currency" -> baseCurrency
+  if(loaded.settings && loaded.settings.currency && !loaded.settings.baseCurrency) S.settings.baseCurrency=loaded.settings.currency;
+  if(!S.settings.rates || typeof S.settings.rates!=='object') S.settings.rates={};
+  S.settings.rates[S.settings.baseCurrency]=1;
+  S.sync=Object.assign({},d.sync,loaded.sync||{});
+  S.ai=Object.assign({},d.ai,loaded.ai||{});
+  ['accounts','categories','txns','investments','goals','recurring','templates'].forEach(k=>{ if(!Array.isArray(S[k])) S[k]=d[k]; });
+  const base=S.settings.baseCurrency;
+  S.accounts.forEach(a=>{ if(!a.currency) a.currency=base; });
+  S.investments.forEach(i=>{ if(!i.currency) i.currency=base; });
+  S.txns.forEach(t=>{ if(!t.currency){ const a=S.accounts.find(x=>x.id===t.accountId); t.currency=a?a.currency:base; } });
+  S.version=2;
+  return S;
+}
+let S = seed();
+let SAVE_T=null;
+function persist(){ S.meta.updatedAt=new Date().toISOString(); clearTimeout(SAVE_T); SAVE_T=setTimeout(()=>Store.save(S),180); }
+
+/* --- currency --- */
+function baseCur(){ return S.settings.baseCurrency||'USD'; }
+function rateOf(cur){ if(!cur||cur===baseCur()) return 1; const r=S.settings.rates?.[cur]; return (r&&r>0)?+r:1; }
+function toBase(amt,cur){ return (+amt||0)*rateOf(cur); }
+function fmtCur(n,cur){ cur=cur||baseCur(); try{ return new Intl.NumberFormat(S.settings.locale||'en-US',{style:'currency',currency:cur,maximumFractionDigits:2}).format(+n||0); }catch(e){ return cur+' '+(+n||0).toFixed(2); } }
+function fmtCur0(n,cur){ cur=cur||baseCur(); try{ return new Intl.NumberFormat(S.settings.locale||'en-US',{style:'currency',currency:cur,maximumFractionDigits:0}).format(+n||0); }catch(e){ return cur+' '+Math.round(+n||0); } }
+const fmtMoney = n => fmtCur(n, baseCur());     // base-currency aggregates
+const money0   = n => fmtCur0(n, baseCur());
+const pct = (n,d=0)=> (isFinite(n)?n:0).toFixed(d)+'%';
+function knownCurrencies(){ return [...new Set([baseCur(),...Object.keys(S.settings.rates||{}),...S.accounts.map(a=>a.currency),...S.investments.map(i=>i.currency),'USD','EUR','GBP','CAD','AUD','JPY','CHF','SEK','BRL','INR'])]; }
+
+/* ==========================================================================
+   3. Selectors — all monetary aggregates convert to the base currency
+   ========================================================================== */
+const Sel = {
+  category:id=>S.categories.find(c=>c.id===id),
+  account:id=>S.accounts.find(a=>a.id===id),
+  member:id=>S.profile.members.find(m=>m.id===id),
+  isLiability:a=>a.type==='credit'||a.type==='loan',
+  liquid(){ return S.accounts.filter(a=>['checking','savings','cash'].includes(a.type)).reduce((s,a)=>s+toBase(a.balance,a.currency),0); },
+  investmentsValue(){ return S.investments.reduce((s,i)=>s+toBase((+i.quantity)*(+i.price),i.currency),0); },
+  investmentsCost(){ return S.investments.reduce((s,i)=>s+toBase((+i.quantity)*(+i.costBasis),i.currency),0); },
+  accountAssets(){ return S.accounts.filter(a=>!Sel.isLiability(a)).reduce((s,a)=>s+toBase(a.balance,a.currency),0); },
+  accountLiabilities(){ return S.accounts.filter(a=>Sel.isLiability(a)).reduce((s,a)=>s+toBase(a.balance,a.currency),0); },
+  assets(){ return Sel.accountAssets()+Sel.investmentsValue(); },
+  liabilities(){ return Sel.accountLiabilities()+(+S.profile.debtTotal||0); },
+  netWorth(){ return Sel.assets()-Sel.liabilities(); },
+  txnsIn(mk){ return S.txns.filter(t=>monthKey(t.date)===mk); },
+  txnBase(t){ return toBase(t.amount,t.currency); },
+  spentInMonth(mk){ return Sel.txnsIn(mk).filter(t=>t.type==='expense').reduce((s,t)=>s+Sel.txnBase(t),0); },
+  incomeInMonth(mk){ const ti=Sel.txnsIn(mk).filter(t=>t.type==='income').reduce((s,t)=>s+Sel.txnBase(t),0); return ti|| +S.profile.monthlyIncome||0; },
+  spentByCategory(mk){ const m={}; Sel.txnsIn(mk).filter(t=>t.type==='expense').forEach(t=>{
+    const b=Sel.txnBase(t);
+    if(Array.isArray(t.splits)&&t.splits.length){ const tot=t.splits.reduce((s,x)=>s+ +x.amount,0)||1; t.splits.forEach(x=>{ m[x.categoryId]=(m[x.categoryId]||0)+b*(+x.amount/tot); }); }
+    else m[t.categoryId]=(m[t.categoryId]||0)+b; }); return m; },
+  budgetTotal(){ return S.categories.reduce((s,c)=>s+ +c.budget,0); },
+  recentMonths(n){ const out=[]; let mk=nowMonth(); for(let i=0;i<n;i++){ out.unshift(mk); mk=addMonths(mk,-1);} return out; },
+  avgMonthlySpend(n=3){ const months=Sel.recentMonths(n).filter(mk=>Sel.txnsIn(mk).length>0); if(!months.length) return Sel.budgetTotal(); return months.reduce((s,mk)=>s+Sel.spentInMonth(mk),0)/months.length; },
+  savingsRate(mk){ const inc=Sel.incomeInMonth(mk); if(!inc) return 0; return clamp((inc-Sel.spentInMonth(mk))/inc*100,-999,100); },
+  emergencyCoverage(){ const spend=Sel.avgMonthlySpend()|| (+S.profile.monthlyIncome*0.7)||1; return spend>0? Sel.liquid()/spend:0; },
+  allocation(){ const m={}; let tot=0; S.investments.forEach(i=>{ const v=toBase((+i.quantity)*(+i.price),i.currency); m[i.assetClass]=(m[i.assetClass]||0)+v; tot+=v;}); return {byClass:m,total:tot}; },
+  // recurring
+  recurringMonthly(r){ const per={day:30.4,week:4.35,month:1,year:1/12}[r.cadence.unit]||1; return toBase(r.amount,r.currency)*per/(+r.cadence.every||1); },
+  recurringMonthlyByType(type){ return S.recurring.filter(r=>r.active&&r.type===type).reduce((s,r)=>s+Sel.recurringMonthly(r),0); },
+  dueRecurring(withinDays=0){ const today=todayISO(); return S.recurring.filter(r=>r.active && daysBetween(today,r.nextDue)<=withinDays).sort((a,b)=>a.nextDue.localeCompare(b.nextDue)); },
+  upcomingRecurring(days=31){ const today=todayISO(); return S.recurring.filter(r=>r.active && daysBetween(today,r.nextDue)>=0 && daysBetween(today,r.nextDue)<=days).sort((a,b)=>a.nextDue.localeCompare(b.nextDue)); },
+};
+
+/* ==========================================================================
+   4. Advice engine — rule-based, weighted by the user's chosen priorities
+   ========================================================================== */
+function buildAdvice(){
+  const A=[]; const p=S.profile; const prio=p.advicePriorities||[];
+  const push=(level,title,body,tag,focus)=>A.push({level,title,body,tag,focus});
+  const hasData = S.txns.length>0 || p.monthlyIncome>0;
+  if(!hasData){ push('warn','Add your numbers to unlock guidance','Set your monthly income in the Profile tab and log a few transactions. Ledger tailors every recommendation below to your own profile and goals.','Start here','budget'); return A; }
+
+  const cov=Sel.emergencyCoverage(), target=+p.emergencyMonths||3, spend=Sel.avgMonthlySpend();
+  if(cov<target){ const gap=(target-cov)*spend; push(cov<Math.min(1,target)?'alert':'warn','Emergency fund below target',`You hold about ${cov.toFixed(1)} months of expenses in liquid cash; your target is ${target}. Aim to add roughly ${money0(gap)} to savings before investing more.`,'Safety net','budget'); }
+  else push('good','Emergency fund is healthy',`You have ~${cov.toFixed(1)} months of expenses set aside (target ${target}). This is the foundation everything else builds on.`,'Safety net','budget');
+
+  const sr=Sel.savingsRate(nowMonth()), goal=+p.savingsRateGoal||0;
+  if(goal>0){
+    if(sr>=goal) push('good','Meeting your savings-rate goal',`This month you're saving about ${pct(sr,0)} of income, at or above your ${pct(goal,0)} goal.`,'Savings rate','budget');
+    else if(sr>=0) push('warn','Below your savings-rate goal',`You're saving ~${pct(sr,0)} this month vs a ${pct(goal,0)} goal. Trimming your largest flexible category could close the gap.`,'Savings rate','budget');
+    else push('alert','Spending more than you earn this month',`Expenses exceed income (savings rate ${pct(sr,0)}). Review the Budget tab for categories running over.`,'Cash flow','budget');
+  }
+
+  const spentBy=Sel.spentByCategory(nowMonth());
+  const over=S.categories.filter(c=>c.budget>0 && (spentBy[c.id]||0)>c.budget).map(c=>({c,spent:spentBy[c.id]||0})).sort((a,b)=>(b.spent-b.c.budget)-(a.spent-a.c.budget));
+  if(over.length){ const top=over.slice(0,3).map(o=>`${o.c.name} (${money0(o.spent)} / ${money0(o.c.budget)})`).join(', '); push('warn',`${over.length} categor${over.length>1?'ies are':'y is'} over budget`,`Running over this month: ${top}. Move money from an under-spent category, or adjust the plan.`,'Budget','budget'); }
+
+  const monthSpend=Sel.spentInMonth(nowMonth());
+  if(monthSpend>0){ const arr=Object.entries(spentBy).map(([id,v])=>({c:Sel.category(id),v})).filter(x=>x.c).sort((a,b)=>b.v-a.v);
+    if(arr[0]&&arr[0].v/monthSpend>0.4) push('warn','Spending is concentrated',`${arr[0].c.name} is ${pct(arr[0].v/monthSpend*100,0)} of this month's spending. A single dominant category is worth a closer look.`,'Diversify','budget'); }
+
+  // recurring load
+  const recExp=Sel.recurringMonthlyByType('expense');
+  if(recExp>0){ const inc=Sel.incomeInMonth(nowMonth());
+    if(inc>0 && recExp/inc>0.6) push('warn','Recurring bills eat most of your income',`Fixed recurring costs are about ${money0(recExp)}/mo — ~${pct(recExp/inc*100,0)} of income. High fixed costs leave little slack; review subscriptions in the Recurring tab.`,'Fixed costs','budget');
+    else push('good','Recurring commitments are in hand',`Fixed recurring costs total ~${money0(recExp)}/mo. Keeping fixed costs modest is what makes a budget resilient.`,'Fixed costs','budget'); }
+  const overdue=Sel.dueRecurring(0);
+  if(overdue.length) push('warn',`${overdue.length} recurring item${overdue.length>1?'s are':' is'} due or overdue`,`Next up: ${overdue.slice(0,3).map(r=>r.name).join(', ')}. Post them from the Recurring tab to keep balances accurate.`,'Recurring','budget');
+
+  if((+p.debtTotal||0)>0 && (+p.debtApr||0)>=7) push('alert','Prioritise your high-interest debt',`You carry ${money0(p.debtTotal)} at ${pct(p.debtApr,1)} APR. Paying this down is a guaranteed ${pct(p.debtApr,1)} return — usually better than investing until it's cleared.`,'Debt','debt');
+  else if((+p.debtTotal||0)>0) push('warn','Low-interest debt on the books',`${money0(p.debtTotal)} at ${pct(p.debtApr,1)} APR. Low rates can be serviced on schedule while you invest — keep an eye on the balance.`,'Debt','debt');
+
+  const alloc=Sel.allocation();
+  if(alloc.total>0){
+    const stock=((alloc.byClass.stock||0)+(alloc.byClass.crypto||0))/alloc.total*100;
+    const glide=clamp(110-(+p.age||30),20,95);
+    const riskTarget={conservative:clamp(glide-20,10,80),moderate:glide,aggressive:clamp(glide+12,30,100)}[p.riskTolerance]||glide;
+    if(stock>riskTarget+15) push('warn','Portfolio is stock-heavy for your profile',`~${pct(stock,0)} of investments are in stocks/crypto; a ${p.riskTolerance} profile at age ${p.age} suggests closer to ${pct(riskTarget,0)}. Consider rebalancing toward bonds/cash.`,'Allocation','invest');
+    else if(stock<riskTarget-15) push('warn','Portfolio may be too conservative',`Only ~${pct(stock,0)} in growth assets vs a suggested ~${pct(riskTarget,0)} for a ${p.riskTolerance} profile at age ${p.age}. You may be leaving long-term growth on the table.`,'Allocation','invest');
+    else push('good','Investment mix fits your profile',`~${pct(stock,0)} in growth assets is in line with a ${p.riskTolerance} profile at age ${p.age} (guide ~${pct(riskTarget,0)}).`,'Allocation','invest');
+    const gain=Sel.investmentsValue()-Sel.investmentsCost();
+    if(Math.abs(gain)>0.005*(Sel.investmentsCost()||1)) push(gain>=0?'good':'warn',`Portfolio is ${gain>=0?'up':'down'} ${money0(Math.abs(gain))}`,`Current value ${money0(Sel.investmentsValue())} vs cost basis ${money0(Sel.investmentsCost())}.`,'Performance','invest');
+  }
+
+  const idle=Sel.liquid()-target*spend;
+  if(cov>=target && idle>Math.max(2000,spend)) push('warn','Cash is sitting idle',`You have about ${money0(idle)} in cash beyond your ${target}-month buffer. Putting the surplus to work protects it from inflation.`,'Optimise','invest');
+
+  S.goals.forEach(g=>{ const remaining=Math.max(0,(+g.target||0)-(+g.saved||0));
+    if(remaining<=0){ push('good',`Goal reached: ${g.name}`,`You've funded ${money0(g.target)} — consider setting the next one.`,'Goal','goals'); return; }
+    if(g.targetDate){ const months=Math.max(0,(new Date(g.targetDate)-new Date())/(1000*60*60*24*30.4));
+      if(months<=0){ push('alert',`Goal past its date: ${g.name}`,`${money0(remaining)} still to go and the target date has passed. Reset the date or top it up.`,'Goal','goals'); return; }
+      const need=remaining/months; const capacity=Sel.savingsRate(nowMonth())/100*Sel.incomeInMonth(nowMonth());
+      push(need>capacity?'warn':'good',`Goal pacing: ${g.name}`,`${money0(remaining)} to go in ~${Math.ceil(months)} months → about ${money0(need)}/month needed.`,'Goal','goals'); } });
+
+  if(!A.some(a=>a.level==='alert') && sr>=goal && cov>=target)
+    push('good','You are on a strong footing','Emergency fund funded, savings goal met, no high-interest debt flagged. Keep the plan steady and revisit allocations quarterly.','Momentum','budget');
+
+  // Sort: severity first, then boost items matching the user's chosen priorities.
+  const sev={alert:0,warn:1,good:2};
+  return A.map((a,i)=>({...a,_i:i})).sort((a,b)=> (sev[a.level]-sev[b.level]) || ((prio.includes(b.focus)?1:0)-(prio.includes(a.focus)?1:0)) || (a._i-b._i));
+}
+
+/* ==========================================================================
+   5. Sync — optional end-to-end encrypted vault (also household sharing)
+   ========================================================================== */
+const Sync = (()=>{
+  const enc=new TextEncoder(), dec=new TextDecoder();
+  const b64=buf=>btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const unb64=str=>Uint8Array.from(atob(str),c=>c.charCodeAt(0));
+  async function deriveKey(pass,salt){ const base=await crypto.subtle.importKey('raw',enc.encode(pass),'PBKDF2',false,['deriveKey']); return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); }
+  async function encryptState(pass,obj){ const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)); const key=await deriveKey(pass,salt); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify(obj))); return {v:1,salt:b64(salt),iv:b64(iv),ct:b64(ct)}; }
+  async function decryptState(pass,payload){ const key=await deriveKey(pass,unb64(payload.salt)); const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(payload.iv)},key,unb64(payload.ct)); return JSON.parse(dec.decode(pt)); }
+  const headers=cfg=>({'apikey':cfg.anonKey,'Authorization':`Bearer ${cfg.anonKey}`,'Content-Type':'application/json'});
+  async function push(pass){ const cfg=S.sync; if(!cfg.url||!cfg.anonKey||!cfg.vaultId) throw new Error('Sync is not fully configured.');
+    const clone=JSON.parse(JSON.stringify(S)); clone.sync={enabled:false,provider:cfg.provider,url:'',anonKey:'',table:cfg.table,vaultId:'',lastSyncedAt:null}; clone.ai=Object.assign({},clone.ai,{apiKey:''});
+    const blob=await encryptState(pass,clone);
+    const row={vault_id:cfg.vaultId,payload:blob,updated_at:new Date().toISOString()};
+    const r=await fetch(`${cfg.url.replace(/\/$/,'')}/rest/v1/${cfg.table}?on_conflict=vault_id`,{method:'POST',headers:{...headers(cfg),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(row)});
+    if(!r.ok) throw new Error('Upload failed ('+r.status+'). Check URL, key and table.');
+    S.sync.lastSyncedAt=new Date().toISOString(); persist(); }
+  async function pull(pass){ const cfg=S.sync; if(!cfg.url||!cfg.anonKey||!cfg.vaultId) throw new Error('Sync is not fully configured.');
+    const r=await fetch(`${cfg.url.replace(/\/$/,'')}/rest/v1/${cfg.table}?vault_id=eq.${encodeURIComponent(cfg.vaultId)}&select=payload,updated_at`,{headers:headers(cfg)});
+    if(!r.ok) throw new Error('Download failed ('+r.status+').');
+    const rows=await r.json(); if(!rows.length) throw new Error('No vault found for that Vault ID.');
+    const remote=await decryptState(pass,rows[0].payload); const keepSync=S.sync, keepAiKey=S.ai.apiKey;
+    S=migrate(remote); S.sync=keepSync; S.sync.lastSyncedAt=new Date().toISOString(); S.ai.apiKey=keepAiKey; persist(); }
+  return {push,pull};
+})();
+
+/* ==========================================================================
+   6. AI coaching — OPTIONAL, opt-in. Bring-your-own key. Shows the payload.
+   ========================================================================== */
+const AI = (()=>{
+  function summary(){ const p=S.profile, cur=baseCur();
+    const spentBy=Sel.spentByCategory(nowMonth());
+    return {
+      note:'Anonymized snapshot generated by Ledger. No names, account names or transaction notes are included.',
+      baseCurrency:cur,
+      profile:{age:p.age,dependents:p.dependents,riskTolerance:p.riskTolerance,monthlyIncome:+p.monthlyIncome,
+               emergencyMonthsTarget:+p.emergencyMonths,savingsRateGoalPct:+p.savingsRateGoal,advicePriorities:p.advicePriorities},
+      snapshot:{ netWorth:Math.round(Sel.netWorth()), assets:Math.round(Sel.assets()), liabilities:Math.round(Sel.liabilities()),
+                 liquidCash:Math.round(Sel.liquid()), emergencyMonthsActual:+Sel.emergencyCoverage().toFixed(1),
+                 savingsRateThisMonthPct:Math.round(Sel.savingsRate(nowMonth())), avgMonthlySpend:Math.round(Sel.avgMonthlySpend()),
+                 investmentsValue:Math.round(Sel.investmentsValue()), investmentsCost:Math.round(Sel.investmentsCost()),
+                 debtTotal:+p.debtTotal, debtApr:+p.debtApr, recurringMonthlyExpense:Math.round(Sel.recurringMonthlyByType('expense')) },
+      budgets:S.categories.map(c=>({category:c.name,group:c.group,planned:+c.budget,spentThisMonth:Math.round(spentBy[c.id]||0)})),
+      investmentAllocation:(()=>{const a=Sel.allocation();const o={};Object.entries(a.byClass).forEach(([k,v])=>o[k]=a.total?Math.round(v/a.total*100):0);return o;})(),
+      goals:S.goals.map((g,i)=>({goal:'Goal '+(i+1),target:+g.target,saved:+g.saved,targetDate:g.targetDate||null})),
+    }; }
+  function prompt(){ return `You are a careful personal-finance coach. Using ONLY the JSON snapshot below, give the user 4-6 specific, prioritized, actionable suggestions tailored to their stated priorities (${(S.profile.advicePriorities||[]).join(', ')||'general'}). Be concrete with numbers, note trade-offs, and add one sentence of encouragement. Do not invent data not present. End with a one-line reminder that this is educational, not licensed financial advice.\n\nSNAPSHOT:\n`+JSON.stringify(summary(),null,2); }
+  async function generate(){ const cfg=S.ai; if(!cfg.apiKey) throw new Error('Add an API key first.');
+    const text=prompt();
+    if(cfg.provider==='anthropic'){
+      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':cfg.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},
+        body:JSON.stringify({model:cfg.model||'claude-3-5-haiku-latest',max_tokens:900,messages:[{role:'user',content:text}]})});
+      if(!r.ok){ const e=await r.text(); throw new Error('Anthropic error '+r.status+': '+e.slice(0,200)); }
+      const j=await r.json(); return (j.content||[]).map(b=>b.text||'').join('\n').trim();
+    } else { // openai-compatible
+      const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Authorization':`Bearer ${cfg.apiKey}`,'content-type':'application/json'},
+        body:JSON.stringify({model:cfg.model||'gpt-4o-mini',max_tokens:900,messages:[{role:'user',content:text}]})});
+      if(!r.ok){ const e=await r.text(); throw new Error('OpenAI error '+r.status+': '+e.slice(0,200)); }
+      const j=await r.json(); return (j.choices?.[0]?.message?.content||'').trim();
+    } }
+  return {summary,prompt,generate};
+})();
+
+/* ==========================================================================
+   7. UI shell — toast, modal, tabs
+   ========================================================================== */
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400); }
+function openModal(title,bodyHTML,footHTML,wide){ $('#modalTitle').textContent=title; $('#modalBody').innerHTML=bodyHTML; $('#modalFoot').innerHTML=footHTML||''; $('#modal').classList.toggle('wide',!!wide); $('#modalBack').classList.add('open'); }
+function closeModal(){ $('#modalBack').classList.remove('open'); }
+$('#modalX').onclick=closeModal;
+$('#modalBack').onclick=e=>{ if(e.target===$('#modalBack')) closeModal(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+let CURRENT='dashboard', BUDGET_MONTH=nowMonth();
+function switchTab(name){ CURRENT=name; $$('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name)); $$('.tab').forEach(s=>s.classList.toggle('active',s.id==='tab-'+name)); renderCurrent(); window.scrollTo({top:0,behavior:'smooth'}); }
+$('#tabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) switchTab(b.dataset.tab); });
+function renderCurrent(){ ({dashboard:renderDashboard,budget:renderBudget,transactions:renderTransactions,recurring:renderRecurring,investments:renderInvestments,goals:renderGoals,profile:renderProfile,advice:renderAdvice,data:renderData}[CURRENT]||renderDashboard)(); renderSyncPill(); }
+function renderAll(){ renderCurrent(); }
+function renderSyncPill(){ const on=S.sync.enabled,dot=$('#syncDot'),txt=$('#syncText'); dot.className='dot'+(on?' on':''); if(on){ txt.textContent='Cloud sync · '+(S.sync.lastSyncedAt?('synced '+timeAgo(S.sync.lastSyncedAt)):'not synced yet'); } else { txt.textContent=Store.mode==='memory'?'Session only (no storage)':'Local · this device'; if(Store.mode==='memory') dot.className='dot warn'; } }
+function timeAgo(iso){ const s=(Date.now()-new Date(iso))/1000; if(s<60)return 'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
+const statTile=(label,val,cls,hint)=>`<div class="card stat"><span class="label">${label}</span><span class="val ${cls||''}">${val}</span><span class="hint">${hint||''}</span></div>`;
+const catSwatch=c=>`<span class="swatch" style="background:${c.color};margin-right:6px"></span>`;
+
+/* ---------- DASHBOARD ---------- */
+function renderDashboard(){
+  const nw=Sel.netWorth(), sr=Sel.savingsRate(nowMonth()), cov=Sel.emergencyCoverage();
+  const inc=Sel.incomeInMonth(nowMonth()), spent=Sel.spentInMonth(nowMonth());
+  const bars=Sel.recentMonths(6).map(mk=>({mk,inc:Sel.incomeInMonth(mk),exp:Sel.spentInMonth(mk)}));
+  const maxBar=Math.max(1,...bars.map(b=>Math.max(b.inc,b.exp)));
+  const spentBy=Sel.spentByCategory(nowMonth());
+  const catRows=Object.entries(spentBy).map(([id,v])=>({c:Sel.category(id),v})).filter(x=>x.c).sort((a,b)=>b.v-a.v).slice(0,6);
+  const maxCat=Math.max(1,...catRows.map(r=>r.v));
+  const due=Sel.upcomingRecurring(14);
+  const adviceTop=buildAdvice().slice(0,2);
+  $('#tab-dashboard').innerHTML=`
+    <div class="section-head"><h2>Dashboard</h2><p>${new Date().toLocaleDateString(undefined,{month:'long',year:'numeric'})} · your money at a glance${baseCur()!=='USD'||Object.keys(S.settings.rates).length>1?` · base ${baseCur()}`:''}.</p></div>
+    <div class="grid cols-4" style="margin-bottom:14px">
+      ${statTile('Net worth',fmtMoney(nw),nw>=0?'pos':'neg',`${money0(Sel.assets())} assets − ${money0(Sel.liabilities())} debts`)}
+      ${statTile('Liquid cash',fmtMoney(Sel.liquid()),'',`${cov.toFixed(1)} mo of expenses`)}
+      ${statTile('Investments',fmtMoney(Sel.investmentsValue()),'',gainHint())}
+      ${statTile('Savings rate',pct(sr,0),sr>=(+S.profile.savingsRateGoal||0)?'pos':(sr<0?'neg':''),`goal ${pct(S.profile.savingsRateGoal||0,0)} this month`)}
+    </div>
+    <div class="grid cols-2">
+      <div class="card">
+        <h2>Cash flow</h2><div class="sub">Income vs spending, last 6 months (${baseCur()})</div>
+        ${barChart(bars,maxBar)}
+        <div class="hr"></div>
+        <div class="kv"><span class="k">This month income</span><span class="v pos">${fmtMoney(inc)}</span></div>
+        <div class="kv"><span class="k">This month spending</span><span class="v neg">${fmtMoney(spent)}</span></div>
+        <div class="kv"><span class="k">Net</span><span class="v ${inc-spent>=0?'pos':'neg'}">${fmtMoney(inc-spent)}</span></div>
+      </div>
+      <div class="card">
+        <h2>Top spending</h2><div class="sub">This month by category</div>
+        ${catRows.length?catRows.map(r=>`<div style="margin-bottom:11px"><div class="kv" style="padding:0 0 4px"><span class="k">${catSwatch(r.c)}${esc(r.c.name)}</span><span class="v">${money0(r.v)}</span></div><div class="bar"><span style="width:${clamp(r.v/maxCat*100,4,100)}%;background:${r.c.color}"></span></div></div>`).join(''):`<div class="empty"><div class="big">🧾</div>No spending logged this month yet.<br><button class="btn primary sm" style="margin-top:10px" onclick="quickAddTxn()">Add a transaction</button></div>`}
+      </div>
+    </div>
+    ${due.length?`<div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2>Coming up</h2><button class="btn ghost sm" onclick="switchTab('recurring')">Recurring →</button></div>
+      <div class="tbl-scroll"><table class="tbl"><tbody>${due.slice(0,5).map(r=>`<tr><td>${daysBetween(todayISO(),r.nextDue)<=0?'<span class="badge due">due</span>':r.nextDue}</td><td>${esc(r.name)}</td><td class="num ${r.type==='income'?'pos':''}">${r.type==='income'?'+':'−'}${fmtCur(r.amount,r.currency)}</td><td class="num"><button class="btn sm gold" onclick="postRecurring('${r.id}')">Post</button></td></tr>`).join('')}</tbody></table></div></div>`:''}
+    <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h2>What to focus on</h2><button class="btn ghost sm" onclick="switchTab('advice')">All advice →</button></div>${adviceTop.map(adviceCard).join('')}</div>`;
+}
+function gainHint(){ const g=Sel.investmentsValue()-Sel.investmentsCost(); if(!S.investments.length) return 'none tracked'; return `${g>=0?'▲':'▼'} ${money0(Math.abs(g))} vs cost`; }
+function barChart(bars,max){ return `<svg viewBox="0 0 320 120" width="100%" height="120" preserveAspectRatio="none" role="img">${bars.map((b,i)=>{ const x=i*(320/bars.length)+6,bw=(320/bars.length)-12,ih=b.inc/max*84,eh=b.exp/max*84; return `<g><rect x="${x}" y="${96-ih}" width="${bw/2-1}" height="${ih}" rx="2" fill="#3C7757"></rect><rect x="${x+bw/2+1}" y="${96-eh}" width="${bw/2-1}" height="${eh}" rx="2" fill="#C56A50"></rect><text x="${x+bw/2}" y="112" font-size="8" fill="#8A8069" text-anchor="middle">${monthLabel(b.mk)}</text></g>`; }).join('')}</svg><div class="pill-group" style="margin-top:4px"><span class="chip"><span class="swatch" style="background:#3C7757"></span>Income</span><span class="chip"><span class="swatch" style="background:#C56A50"></span>Spending</span></div>`; }
+const adviceCard=a=>`<div class="advice ${a.level}"><h3>${a.level==='alert'?'⚠️':a.level==='warn'?'◐':'✓'} ${esc(a.title)} <span class="tag">${esc(a.tag)}</span></h3><p>${esc(a.body)}</p></div>`;
+
+/* ---------- BUDGET (flexible plan & track) ---------- */
+function renderBudget(){
+  const mk=BUDGET_MONTH, spentBy=Sel.spentByCategory(mk), groups={};
+  S.categories.forEach(c=>{ (groups[c.group]=groups[c.group]||[]).push(c); });
+  const totalBudget=Sel.budgetTotal(), totalSpent=Sel.spentInMonth(mk), inc=Sel.incomeInMonth(mk);
+  const planVsIncome=inc-totalBudget;
+  $('#tab-budget').innerHTML=`
+    <div class="section-head"><h2>Budget</h2><p>Flexible plan &amp; track — set an expected amount per category and watch spending against it. No forced envelopes.</p></div>
+    <div class="card" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between">
+      <div style="display:flex;gap:8px;align-items:center"><button class="btn icon" onclick="shiftBudgetMonth(-1)">‹</button><strong style="font-family:'Fraunces',serif;font-size:18px;min-width:120px;text-align:center">${new Date(mk+'-01').toLocaleDateString(undefined,{month:'long',year:'numeric'})}</strong><button class="btn icon" onclick="shiftBudgetMonth(1)">›</button></div>
+      <div style="display:flex;gap:22px;flex-wrap:wrap">
+        <div class="stat"><span class="label">Planned</span><span class="val" style="font-size:20px">${money0(totalBudget)}</span></div>
+        <div class="stat"><span class="label">Spent</span><span class="val ${totalSpent>totalBudget?'neg':''}" style="font-size:20px">${money0(totalSpent)}</span></div>
+        <div class="stat"><span class="label">Remaining</span><span class="val ${totalBudget-totalSpent<0?'neg':'pos'}" style="font-size:20px">${money0(totalBudget-totalSpent)}</span></div>
+        <div class="stat"><span class="label">Income − plan</span><span class="val ${planVsIncome<0?'neg':'pos'}" style="font-size:20px">${money0(planVsIncome)}</span></div>
+      </div>
+      <button class="btn primary" onclick="editCategory()">+ Category</button>
+    </div>
+    ${planVsIncome<0?`<div class="note" style="margin-bottom:12px">Your planned spending exceeds expected income by ${money0(-planVsIncome)}. That's allowed in flexible mode — but trimming a category or two keeps you saving.</div>`:''}
+    ${Object.keys(groups).map(g=>`<div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px"><h2>${esc(g)}</h2><span class="muted" style="font-size:12.5px">${money0(groups[g].reduce((s,c)=>s+(spentBy[c.id]||0),0))} / ${money0(groups[g].reduce((s,c)=>s+ +c.budget,0))}</span></div>
+      <div class="tbl-scroll"><table class="tbl"><tbody>${groups[g].map(c=>{ const sp=spentBy[c.id]||0,pp=c.budget>0?sp/c.budget*100:(sp>0?100:0),cls=sp>c.budget?'over':(pp>85?'warn':''); return `<tr><td style="width:34%">${catSwatch(c)}${esc(c.name)}</td><td style="width:34%"><div class="bar ${cls}"><span style="width:${clamp(pp,0,100)}%"></span></div></td><td class="num" style="width:22%">${money0(sp)} <span class="muted">/ ${money0(c.budget)}</span></td><td class="num" style="width:10%"><button class="btn sm ghost" onclick="editCategory('${c.id}')">Edit</button></td></tr>`; }).join('')}</tbody></table></div></div>`).join('')}`;
+}
+function shiftBudgetMonth(n){ BUDGET_MONTH=addMonths(BUDGET_MONTH,n); renderBudget(); }
+
+/* ---------- TRANSACTIONS (manual + quick-add + CSV import + splits + members) ---------- */
+let TXN_FILTER={month:'',cat:'',member:'',q:''};
+function renderTransactions(){
+  let list=[...S.txns].sort((a,b)=>b.date.localeCompare(a.date)||(b.id>a.id?1:-1));
+  if(TXN_FILTER.month) list=list.filter(t=>monthKey(t.date)===TXN_FILTER.month);
+  if(TXN_FILTER.cat) list=list.filter(t=>t.categoryId===TXN_FILTER.cat || (t.splits||[]).some(s=>s.categoryId===TXN_FILTER.cat));
+  if(TXN_FILTER.member) list=list.filter(t=>t.memberId===TXN_FILTER.member);
+  if(TXN_FILTER.q){ const q=TXN_FILTER.q.toLowerCase(); list=list.filter(t=>(t.note||'').toLowerCase().includes(q)||(Sel.category(t.categoryId)?.name||'').toLowerCase().includes(q)); }
+  const monthsSet=[...new Set(S.txns.map(t=>monthKey(t.date)))].sort().reverse();
+  const templates=S.templates;
+  $('#tab-transactions').innerHTML=`
+    <div class="section-head"><h2>Transactions</h2><p>Log expenses and income. Categorize as you go — everything else builds on this.</p></div>
+    ${templates.length?`<div class="card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2>Quick add</h2><button class="btn ghost sm" onclick="manageTemplates()">Manage</button></div><div class="pill-group">${templates.map(t=>`<span class="chip click" onclick="useTemplate('${t.id}')" title="Add now">＋ ${esc(t.name)} · ${fmtCur(t.amount,t.currency||baseCur())}</span>`).join('')}</div></div>`:''}
+    <div class="card" style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+      <label class="field" style="flex:1;min-width:140px"><span>Search</span><input id="txnQ" placeholder="note or category…" value="${esc(TXN_FILTER.q)}"></label>
+      <label class="field"><span>Month</span><select id="txnMonth"><option value="">All</option>${monthsSet.map(m=>`<option value="${m}" ${TXN_FILTER.month===m?'selected':''}>${new Date(m+'-01').toLocaleDateString(undefined,{month:'short',year:'numeric'})}</option>`).join('')}</select></label>
+      <label class="field"><span>Category</span><select id="txnCat"><option value="">All</option>${S.categories.map(c=>`<option value="${c.id}" ${TXN_FILTER.cat===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+      ${S.profile.members.length?`<label class="field"><span>Who</span><select id="txnMember"><option value="">Anyone</option>${S.profile.members.map(m=>`<option value="${m.id}" ${TXN_FILTER.member===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}</select></label>`:''}
+      <button class="btn" onclick="importCSV()">⤒ Import CSV</button>
+      <button class="btn primary" onclick="editTxn()">+ Add</button>
+    </div>
+    <div class="card">${list.length?`<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Note</th>${S.profile.members.length?'<th>Who</th>':''}<th class="num">Amount</th><th></th></tr></thead>
+      <tbody>${list.slice(0,400).map(t=>{ const c=Sel.category(t.categoryId),m=Sel.member(t.memberId),split=(t.splits||[]).length; return `<tr><td>${t.date}</td><td><span class="badge ${t.type}">${t.type}</span></td><td>${split?`<span class="muted">${split} splits</span>`:(c?`${catSwatch(c)}${esc(c.name)}`:'<span class="muted">—</span>')}</td><td>${esc(t.note||'')}</td>${S.profile.members.length?`<td>${m?esc(m.name):'<span class="muted">—</span>'}</td>`:''}<td class="num ${t.type==='income'?'pos':''}">${t.type==='income'?'+':'−'}${fmtCur(t.amount,t.currency)}${t.currency!==baseCur()?`<br><span class="muted" style="font-size:11px">${money0(Sel.txnBase(t))}</span>`:''}</td><td class="num"><button class="btn sm ghost" onclick="editTxn('${t.id}')">Edit</button></td></tr>`; }).join('')}</tbody></table></div>${list.length>400?`<div class="muted" style="text-align:center;padding:10px">Showing first 400 of ${list.length}.</div>`:''}`:`<div class="empty"><div class="big">🧾</div>No transactions match.<br><button class="btn primary sm" style="margin-top:10px" onclick="editTxn()">Add your first transaction</button></div>`}</div>`;
+  $('#txnQ').oninput=e=>{ TXN_FILTER.q=e.target.value; clearTimeout(window._tf); window._tf=setTimeout(renderTransactions,220); };
+  $('#txnMonth').onchange=e=>{ TXN_FILTER.month=e.target.value; renderTransactions(); };
+  $('#txnCat').onchange=e=>{ TXN_FILTER.cat=e.target.value; renderTransactions(); };
+  if($('#txnMember')) $('#txnMember').onchange=e=>{ TXN_FILTER.member=e.target.value; renderTransactions(); };
+}
+function quickAddTxn(){ switchTab('transactions'); setTimeout(()=>editTxn(),60); }
+
+/* ---------- RECURRING ---------- */
+function renderRecurring(){
+  const monExp=Sel.recurringMonthlyByType('expense'), monInc=Sel.recurringMonthlyByType('income');
+  const upcoming=Sel.upcomingRecurring(45);
+  const cadLabel=r=>`every ${(+r.cadence.every||1)>1?r.cadence.every+' ':''}${r.cadence.unit}${(+r.cadence.every||1)>1?'s':''}`;
+  $('#tab-recurring').innerHTML=`
+    <div class="section-head"><h2>Recurring</h2><p>Bills, subscriptions and regular income. Post them when due to keep balances accurate — and catch subscriptions you forgot.</p></div>
+    <div class="grid cols-3" style="margin-bottom:14px">
+      ${statTile('Recurring expenses',money0(monExp)+'/mo','neg',`${S.recurring.filter(r=>r.active&&r.type==='expense').length} items`)}
+      ${statTile('Recurring income',money0(monInc)+'/mo','pos',`${S.recurring.filter(r=>r.active&&r.type==='income').length} items`)}
+      ${statTile('Net recurring',money0(monInc-monExp)+'/mo',monInc-monExp>=0?'pos':'neg','monthly equivalent')}
+    </div>
+    <div class="card" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div><h2 style="font-size:16px">Upcoming (next 45 days)</h2><div class="sub" style="margin:0">${upcoming.length} scheduled</div></div>
+      <div class="row-actions">${Sel.dueRecurring(0).length?`<button class="btn gold" onclick="postAllDue()">Post all due (${Sel.dueRecurring(0).length})</button>`:''}<button class="btn primary" onclick="editRecurring()">+ Recurring item</button></div>
+    </div>
+    <div class="card">${S.recurring.length?`<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Next due</th><th>Name</th><th>Cadence</th><th>Category</th><th class="num">Amount</th><th></th></tr></thead>
+      <tbody>${[...S.recurring].sort((a,b)=>(a.active===b.active?0:a.active?-1:1)||a.nextDue.localeCompare(b.nextDue)).map(r=>{ const c=Sel.category(r.categoryId),overdue=r.active&&daysBetween(todayISO(),r.nextDue)<=0; return `<tr style="${r.active?'':'opacity:.5'}"><td>${overdue?'<span class="badge due">due</span> ':''}${r.nextDue}</td><td>${esc(r.name)}${r.active?'':' <span class="muted">(paused)</span>'}</td><td class="muted">${cadLabel(r)}</td><td>${c?`${catSwatch(c)}${esc(c.name)}`:'<span class="muted">—</span>'}</td><td class="num ${r.type==='income'?'pos':''}">${r.type==='income'?'+':'−'}${fmtCur(r.amount,r.currency)}</td><td class="num row-actions" style="justify-content:flex-end">${r.active?`<button class="btn sm gold" onclick="postRecurring('${r.id}')">Post</button>`:''}<button class="btn sm ghost" onclick="editRecurring('${r.id}')">Edit</button></td></tr>`; }).join('')}</tbody></table></div>`:`<div class="empty"><div class="big">🔁</div>No recurring items yet — add rent, salary, streaming, insurance…<br><button class="btn primary sm" style="margin-top:10px" onclick="editRecurring()">Add a recurring item</button></div>`}</div>
+    <div class="note" style="margin-top:12px">"Post" logs a real transaction for the due item and advances its next date by the cadence — so your budget reflects bills as they actually hit.</div>`;
+}
+function postRecurring(id){ const r=S.recurring.find(x=>x.id===id); if(!r)return;
+  S.txns.push({id:uid(),date:r.nextDue<todayISO()?r.nextDue:todayISO(),type:r.type,amount:+r.amount,currency:r.currency,categoryId:r.categoryId,accountId:r.accountId,note:r.name,memberId:r.memberId||''});
+  applyAccount(S.txns[S.txns.length-1],1);
+  r.lastPosted=r.nextDue; r.nextDue=addToDate(r.nextDue,r.cadence.unit,r.cadence.every);
+  persist(); toast('Posted '+r.name); renderCurrent(); }
+function postAllDue(){ Sel.dueRecurring(0).forEach(r=>postRecurring(r.id)); toast('Posted all due items'); renderRecurring(); }
+
+/* ---------- INVESTMENTS ---------- */
+function renderInvestments(){
+  const val=Sel.investmentsValue(),cost=Sel.investmentsCost(),gain=val-cost,alloc=Sel.allocation();
+  const classColors={stock:'#2F5D45',bond:'#3A6A86',cash:'#C1912E',crypto:'#A44A32',realestate:'#8F6A18',other:'#8A8069'};
+  const classLabel={stock:'Stocks',bond:'Bonds',cash:'Cash',crypto:'Crypto',realestate:'Real estate',other:'Other'};
+  $('#tab-investments').innerHTML=`
+    <div class="section-head"><h2>Investments</h2><p>Track holdings, cost basis and value. Multi-currency holdings convert to ${baseCur()} for totals.</p></div>
+    <div class="grid cols-3" style="margin-bottom:14px">
+      ${statTile('Portfolio value',fmtMoney(val),'',`${S.investments.length} holding${S.investments.length!==1?'s':''}`)}
+      ${statTile('Cost basis',fmtMoney(cost),'','total invested')}
+      ${statTile('Unrealized P/L',(gain>=0?'+':'−')+money0(Math.abs(gain)),gain>=0?'pos':'neg',cost>0?pct(gain/cost*100,1)+' return':'')}
+    </div>
+    <div class="grid cols-2">
+      <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2>Holdings</h2><button class="btn primary sm" onclick="editInvestment()">+ Add</button></div>
+        ${S.investments.length?`<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Name</th><th>Class</th><th class="num">Qty</th><th class="num">Value</th><th class="num">P/L</th><th></th></tr></thead>
+          <tbody>${S.investments.map(i=>{ const v=(+i.quantity)*(+i.price),g=v-(+i.quantity)*(+i.costBasis); return `<tr><td>${esc(i.name)}${i.ticker?` <span class="muted">${esc(i.ticker)}</span>`:''}${i.currency!==baseCur()?` <span class="muted">${i.currency}</span>`:''}</td><td><span class="chip"><span class="swatch" style="background:${classColors[i.assetClass]||'#8A8069'}"></span>${classLabel[i.assetClass]||i.assetClass}</span></td><td class="num">${(+i.quantity).toLocaleString()}</td><td class="num">${fmtCur0(v,i.currency)}</td><td class="num ${g>=0?'pos':'neg'}">${g>=0?'+':'−'}${fmtCur0(Math.abs(g),i.currency)}</td><td class="num"><button class="btn sm ghost" onclick="editInvestment('${i.id}')">Edit</button></td></tr>`; }).join('')}</tbody></table></div>`:`<div class="empty"><div class="big">📈</div>No holdings yet.<br><button class="btn primary sm" style="margin-top:10px" onclick="editInvestment()">Add a holding</button></div>`}</div>
+      <div class="card"><h2>Allocation</h2><div class="sub">By asset class (${baseCur()})</div>${alloc.total>0?donut(alloc,classColors,classLabel):`<div class="empty"><div class="big">🥧</div>Add holdings to see your allocation.</div>`}</div>
+    </div>`;
+}
+function donut(alloc,colors,labels){ const entries=Object.entries(alloc.byClass).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]); let acc=0; const R=52,C=2*Math.PI*R;
+  const segs=entries.map(([k,v])=>{ const frac=v/alloc.total,dash=`${frac*C} ${C}`,off=-acc*C; acc+=frac; return `<circle r="${R}" cx="70" cy="70" fill="none" stroke="${colors[k]||'#8A8069'}" stroke-width="20" stroke-dasharray="${dash}" stroke-dashoffset="${off}" transform="rotate(-90 70 70)"></circle>`; }).join('');
+  return `<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><svg width="140" height="140" viewBox="0 0 140 140">${segs}<text x="70" y="66" text-anchor="middle" font-size="11" fill="#8A8069">Total</text><text x="70" y="82" text-anchor="middle" font-size="13" fill="#2B2A28" font-weight="600">${money0(alloc.total)}</text></svg><div style="flex:1;min-width:140px">${entries.map(([k,v])=>`<div class="kv"><span class="k"><span class="swatch" style="background:${colors[k]||'#8A8069'};margin-right:7px"></span>${labels[k]||k}</span><span class="v">${pct(v/alloc.total*100,0)}</span></div>`).join('')}</div></div>`; }
+
+/* ---------- GOALS ---------- */
+function renderGoals(){
+  $('#tab-goals').innerHTML=`
+    <div class="section-head"><h2>Goals</h2><p>Name what you're saving for. Ledger tracks progress and the monthly pace to stay on target.</p></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn primary" onclick="editGoal()">+ New goal</button></div>
+    ${S.goals.length?`<div class="grid cols-2">${S.goals.map(g=>{ const rem=Math.max(0,(+g.target)-(+g.saved)),pp=g.target>0?(+g.saved)/(+g.target)*100:0; let pace=''; if(g.targetDate&&rem>0){ const months=Math.max(0,(new Date(g.targetDate)-new Date())/(1000*60*60*24*30.4)); pace=months>0?`≈ ${money0(rem/months)}/mo to finish by ${new Date(g.targetDate).toLocaleDateString(undefined,{month:'short',year:'numeric'})}`:'target date passed'; }
+      return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:start"><h2>${esc(g.name)}</h2><button class="btn sm ghost" onclick="editGoal('${g.id}')">Edit</button></div><div class="stat" style="margin:6px 0 10px"><span class="val" style="font-size:22px">${money0(g.saved)} <span class="muted" style="font-size:15px">/ ${money0(g.target)}</span></span></div><div class="bar"><span style="width:${clamp(pp,0,100)}%"></span></div><div class="kv" style="margin-top:8px"><span class="k">${pct(pp,0)} funded</span><span class="v">${money0(rem)} to go</span></div>${pace?`<div class="muted" style="font-size:12.5px;margin-top:6px">${pace}</div>`:''}</div>`; }).join('')}</div>`:`<div class="card"><div class="empty"><div class="big">🎯</div>No goals yet — try "Emergency fund", "House down payment", or "Vacation".<br><button class="btn primary sm" style="margin-top:10px" onclick="editGoal()">Create a goal</button></div></div>`}`;
+}
+
+/* ---------- PROFILE ---------- */
+function renderProfile(){
+  const p=S.profile;
+  $('#tab-profile').innerHTML=`
+    <div class="section-head"><h2>Financial profile</h2><p>These inputs personalize every recommendation. Nothing here leaves your browser.</p></div>
+    <div class="grid cols-2">
+      <div class="card"><h2>About you</h2><div class="sub">Used to tailor advice</div>
+        <div class="form-grid">
+          <label class="field"><span>Name (optional)</span><input id="p_name" value="${esc(p.name)}"></label>
+          <label class="field"><span>Monthly net income (${baseCur()})</span><input id="p_income" type="number" min="0" step="50" value="${p.monthlyIncome}"></label>
+          <label class="field"><span>Age</span><input id="p_age" type="number" min="0" max="120" value="${p.age}"></label>
+          <label class="field"><span>Dependents</span><input id="p_dep" type="number" min="0" value="${p.dependents}"></label>
+          <label class="field"><span>Risk tolerance</span><select id="p_risk">${['conservative','moderate','aggressive'].map(r=>`<option value="${r}" ${p.riskTolerance===r?'selected':''}>${r[0].toUpperCase()+r.slice(1)}</option>`).join('')}</select></label>
+          <label class="field"><span>Base currency</span><select id="p_cur">${knownCurrencies().map(c=>`<option ${baseCur()===c?'selected':''}>${c}</option>`).join('')}</select></label>
+        </div>
+      </div>
+      <div class="card"><h2>Targets &amp; priorities</h2><div class="sub">The plan you're holding yourself to</div>
+        <div class="form-grid">
+          <label class="field"><span>Emergency fund (months)</span><input id="p_em" type="number" min="0" max="24" step="0.5" value="${p.emergencyMonths}"></label>
+          <label class="field"><span>Savings-rate goal (%)</span><input id="p_sr" type="number" min="0" max="100" value="${p.savingsRateGoal}"></label>
+        </div>
+        <div style="margin-top:12px"><span class="label" style="font-size:12px;color:var(--ink-faint);font-weight:600;text-transform:uppercase;letter-spacing:.5px">What should advice focus on?</span>
+          <div class="pill-group" id="prioPills" style="margin-top:8px">${ADVICE_PRIORITIES.map(([v,l])=>`<span class="chip click ${p.advicePriorities.includes(v)?'sel':''}" data-prio="${v}">${l}</span>`).join('')}</div>
+          <div class="muted" style="font-size:12px;margin-top:6px">Pick any that matter — chosen topics are surfaced first in the Advice tab.</div>
+        </div>
+        <div class="hr"></div>
+        <h2 style="font-size:15px">Debt</h2><div class="sub">Loans &amp; balances you're paying down</div>
+        <div class="form-grid">
+          <label class="field"><span>Total debt</span><input id="p_debt" type="number" min="0" step="100" value="${p.debtTotal}"></label>
+          <label class="field"><span>Avg APR (%)</span><input id="p_apr" type="number" min="0" max="60" step="0.1" value="${p.debtApr}"></label>
+          <label class="field"><span>Monthly payment</span><input id="p_dm" type="number" min="0" step="10" value="${p.debtMonthly}"></label>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2>Household</h2><button class="btn primary sm" onclick="editMember()">+ Person</button></div>
+      <div class="sub">Add the people who share this budget. You can tag transactions with who spent, and share the whole vault via encrypted Cloud sync (Data tab).</div>
+      ${p.members.length?`<div class="pill-group">${p.members.map(m=>`<span class="chip click" onclick="editMember('${m.id}')">👤 ${esc(m.name)}</span>`).join('')}</div>`:`<div class="muted" style="font-size:13px">Just you for now — add a partner or family member to track shared spending.</div>`}
+    </div>
+    <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2>Accounts</h2><button class="btn primary sm" onclick="editAccount()">+ Account</button></div>
+      <div class="sub">Balances feed your net worth. Mark credit cards / loans as liabilities.</div>
+      <div class="tbl-scroll"><table class="tbl"><thead><tr><th>Account</th><th>Type</th><th>Currency</th><th class="num">Balance</th><th></th></tr></thead>
+        <tbody>${S.accounts.map(a=>`<tr><td>${esc(a.name)}</td><td>${Sel.isLiability(a)?'<span class="badge expense">'+a.type+'</span>':a.type}</td><td>${a.currency}</td><td class="num ${Sel.isLiability(a)?'neg':''}">${Sel.isLiability(a)?'−':''}${fmtCur(a.balance,a.currency)}</td><td class="num"><button class="btn sm ghost" onclick="editAccount('${a.id}')">Edit</button></td></tr>`).join('')}</tbody></table></div>
+    </div>
+    ${knownCurrencies().length>1?`<div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2>Exchange rates</h2><button class="btn ghost sm" onclick="editRates()">Edit rates</button></div><div class="sub">Manually maintained (keeps the app fully offline). 1 unit of each currency, in ${baseCur()}.</div>
+      <div class="pill-group">${knownCurrencies().filter(c=>c!==baseCur()).map(c=>`<span class="chip">${c} → ${rateOf(c)} ${baseCur()}</span>`).join('')||'<span class="muted">Only '+baseCur()+' in use.</span>'}</div></div>`:''}
+    <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn primary" onclick="saveProfile()">Save profile</button></div>`;
+  $$('#prioPills .chip').forEach(ch=>ch.onclick=()=>{ const v=ch.dataset.prio, arr=S.profile.advicePriorities; const i=arr.indexOf(v); if(i>=0)arr.splice(i,1); else arr.push(v); ch.classList.toggle('sel'); });
+}
+function saveProfile(){ const p=S.profile;
+  p.name=$('#p_name').value.trim(); p.monthlyIncome=+$('#p_income').value||0; p.age=+$('#p_age').value||0; p.dependents=+$('#p_dep').value||0; p.riskTolerance=$('#p_risk').value;
+  p.emergencyMonths=+$('#p_em').value||0; p.savingsRateGoal=+$('#p_sr').value||0; p.debtTotal=+$('#p_debt').value||0; p.debtApr=+$('#p_apr').value||0; p.debtMonthly=+$('#p_dm').value||0;
+  const newBase=$('#p_cur').value; if(newBase!==baseCur()){ S.settings.baseCurrency=newBase; S.settings.rates[newBase]=1; }
+  persist(); toast('Profile saved'); renderProfile(); }
+
+/* ---------- ADVICE ---------- */
+function renderAdvice(){
+  const A=buildAdvice(), counts={alert:A.filter(a=>a.level==='alert').length,warn:A.filter(a=>a.level==='warn').length,good:A.filter(a=>a.level==='good').length};
+  const prio=S.profile.advicePriorities||[];
+  $('#tab-advice').innerHTML=`
+    <div class="section-head"><h2>Advice</h2><p>Generated from your profile, goals and live data — recomputed each time you open this tab.</p></div>
+    <div class="grid cols-3" style="margin-bottom:14px">
+      ${statTile('Needs attention',counts.alert,counts.alert?'neg':'','urgent items')}
+      ${statTile('Worth reviewing',counts.warn,counts.warn?'':'','suggestions')}
+      ${statTile('Looking good',counts.good,'pos','wins to keep')}
+    </div>
+    <div class="card" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div><h2 style="font-size:16px">Your focus</h2><div class="sub" style="margin:0">${prio.length?prio.map(v=>ADVICE_PRIORITIES.find(x=>x[0]===v)?.[1]).filter(Boolean).join(' · '):'Not set — pick priorities in Profile'}</div></div>
+      <button class="btn ghost sm" onclick="switchTab('profile')">Change in Profile</button>
+    </div>
+    ${A.map(adviceCard).join('')}
+    <div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div><h2 style="font-size:16px">AI coaching <span class="badge ${S.ai.enabled?'income':'expense'}">${S.ai.enabled?'ON':'OFF'}</span></h2><div class="sub" style="margin:0">Optional · opt-in · sends an anonymized snapshot to your chosen provider</div></div><div class="row-actions"><button class="btn" onclick="previewAIPayload()">Preview data</button><button class="btn gold" onclick="runAI()" ${S.ai.enabled&&S.ai.apiKey?'':'disabled'}>✨ Generate insight</button></div></div>
+      <div id="aiOut" style="margin-top:12px"></div>
+      ${S.ai.enabled?'':'<div class="note" style="margin-top:10px">Turn this on in <b>Data → AI coaching</b> and add your own API key. Everything else in Ledger stays fully offline.</div>'}
+    </div>
+    <div class="note" style="margin-top:8px">Ledger's guidance is rule-based education, not personalized advice from a licensed professional.</div>`;
+}
+
+/* ---------- DATA ---------- */
+function renderData(){
+  const c=S.sync, ai=S.ai;
+  $('#tab-data').innerHTML=`
+    <div class="section-head"><h2>Data</h2><p>Your data lives in your browser. Back it up, sync it (encrypted), install the app, or enable AI coaching.</p></div>
+    <div class="grid cols-2">
+      <div class="card"><h2>Backup &amp; restore</h2><div class="sub">Storage mode: <strong>${Store.mode}</strong></div>
+        <p style="font-size:13.5px;color:var(--ink-soft);margin-top:0">Export a full snapshot as JSON, or import one to restore.</p>
+        <div class="row-actions"><button class="btn primary" onclick="exportData()">⤓ Export JSON</button><button class="btn" onclick="$('#importFile').click()">⤒ Import JSON</button><input type="file" id="importFile" accept="application/json" style="display:none"></div>
+        <div class="hr"></div>
+        <div class="row-actions"><button class="btn" id="installBtn" onclick="doInstall()" style="display:none">⤓ Install app</button><button class="btn danger sm" onclick="resetAll()">Reset all data</button></div>
+        <div class="note" style="margin-top:12px">Install adds Ledger to your home screen / desktop and enables offline use (served over HTTPS, e.g. GitHub Pages).</div>
+      </div>
+      <div class="card"><h2>Cloud sync &amp; sharing <span class="badge ${c.enabled?'income':'expense'}">${c.enabled?'ON':'OFF'}</span></h2><div class="sub">Optional · end-to-end encrypted · also how you share with your household</div>
+        <p style="font-size:13.5px;color:var(--ink-soft);margin-top:0">Sync between your devices — or your partner's — via a Supabase project you control. Data is encrypted in this browser with your passphrase <em>before</em> upload; the server only ever stores ciphertext. Same URL + Vault ID + passphrase on another device = shared vault. Setup: <code>sync/README.md</code>.</p>
+        <div class="form-grid">
+          <label class="field" style="grid-column:1/-1"><span>Supabase project URL</span><input id="sy_url" placeholder="https://xxxx.supabase.co" value="${esc(c.url)}"></label>
+          <label class="field" style="grid-column:1/-1"><span>Anon public API key</span><input id="sy_key" placeholder="eyJ…" value="${esc(c.anonKey)}"></label>
+          <label class="field"><span>Table name</span><input id="sy_table" value="${esc(c.table||'ledger_vault')}"></label>
+          <label class="field"><span>Vault ID (shared secret)</span><input id="sy_vault" placeholder="a name only your household knows" value="${esc(c.vaultId)}"></label>
+          <label class="field" style="grid-column:1/-1"><span>Encryption passphrase (never uploaded, never stored)</span><input id="sy_pass" type="password" placeholder="strong passphrase"></label>
+        </div>
+        <div class="row-actions" style="margin-top:12px"><button class="btn" onclick="saveSyncConfig()">Save settings</button><button class="btn gold" onclick="doSync('push')">⇧ Push</button><button class="btn gold" onclick="doSync('pull')">⇩ Pull</button></div>
+        <div class="note" style="margin-top:12px">Forget the passphrase and the data can't be recovered — that's the point of end-to-end encryption. Keep a copy safe.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>AI coaching <span class="badge ${ai.enabled?'income':'expense'}">${ai.enabled?'ON':'OFF'}</span></h2><div class="sub">Optional · opt-in · the only feature that can send data off-device</div>
+      <p style="font-size:13.5px;color:var(--ink-soft);margin-top:0">When on, the Advice tab can send an <b>anonymized numeric snapshot</b> (no names, account names or transaction notes) to an AI provider using <b>your own API key</b> for narrative coaching. Off by default. Preview exactly what's sent from the Advice tab.</p>
+      <div class="form-grid">
+        <label class="field"><span>Enabled</span><select id="ai_en"><option value="off" ${ai.enabled?'':'selected'}>Off</option><option value="on" ${ai.enabled?'selected':''}>On</option></select></label>
+        <label class="field"><span>Provider</span><select id="ai_prov"><option value="anthropic" ${ai.provider==='anthropic'?'selected':''}>Anthropic (Claude)</option><option value="openai" ${ai.provider==='openai'?'selected':''}>OpenAI (or compatible)</option></select></label>
+        <label class="field"><span>Model (optional)</span><input id="ai_model" value="${esc(ai.model||'')}" placeholder="${ai.provider==='openai'?'gpt-4o-mini':'claude-3-5-haiku-latest'}"></label>
+        <label class="field"><span>API key (stored locally only)</span><input id="ai_key" type="password" value="${esc(ai.apiKey||'')}" placeholder="sk-… / your key"></label>
+      </div>
+      <div class="row-actions" style="margin-top:12px"><button class="btn" onclick="saveAIConfig()">Save AI settings</button></div>
+      <div class="note" style="margin-top:12px">Your key is stored in this browser only and is excluded from Cloud-sync uploads. Calls go directly from your browser to the provider. Costs are billed to your own account.</div>
+    </div>`;
+  $('#importFile').onchange=importData;
+  if(deferredInstall) $('#installBtn').style.display='';
+}
+
+/* ==========================================================================
+   8. Edit modals & mutations
+   ========================================================================== */
+function applyAccount(r,sign){ const a=Sel.account(r.accountId); if(!a)return; const s=r.type==='income'?1:-1; a.balance=+(+a.balance+sign*s*(+r.amount)).toFixed(2); }
+const accountCurrency=id=>Sel.account(id)?.currency||baseCur();
+
+// --- transactions (with optional splits + member) ---
+let SPLITS=[]; // working splits for the open modal
+function editTxn(id){
+  const t=id?S.txns.find(x=>x.id===id):{id:'',date:todayISO(),type:'expense',amount:'',categoryId:S.categories[0]?.id||'',accountId:S.accounts[0]?.id||'',note:'',memberId:'',splits:[]};
+  SPLITS=(t.splits||[]).map(s=>({...s}));
+  const members=S.profile.members;
+  openModal(id?'Edit transaction':'Add transaction',`
+    <div class="form-grid">
+      <label class="field"><span>Type</span><select id="t_type">${['expense','income'].map(x=>`<option value="${x}" ${t.type===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select></label>
+      <label class="field"><span>Date</span><input id="t_date" type="date" value="${t.date}"></label>
+      <label class="field"><span>Amount</span><input id="t_amt" type="number" min="0" step="0.01" value="${t.amount}"></label>
+      <label class="field"><span>Account</span><select id="t_acct" onchange="document.getElementById('t_curhint').textContent=this.selectedOptions[0].dataset.cur">${S.accounts.map(a=>`<option value="${a.id}" data-cur="${a.currency}" ${t.accountId===a.id?'selected':''}>${esc(a.name)} (${a.currency})</option>`).join('')}</select></label>
+      <label class="field" id="catField"><span>Category</span><select id="t_cat">${S.categories.map(c=>`<option value="${c.id}" ${t.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+      ${members.length?`<label class="field"><span>Who</span><select id="t_member"><option value="">—</option>${members.map(m=>`<option value="${m.id}" ${t.memberId===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}</select></label>`:''}
+      <label class="field" style="grid-column:1/-1"><span>Note</span><input id="t_note" value="${esc(t.note||'')}" placeholder="optional"></label>
+    </div>
+    <div class="muted" style="font-size:12px">Amount is in the account's currency (<span id="t_curhint">${accountCurrency(t.accountId)}</span>).</div>
+    <div id="splitWrap"></div>
+    <button class="btn ghost sm" id="splitToggle" onclick="toggleSplit()" style="align-self:flex-start">${SPLITS.length?'Edit split':'Split across categories'}</button>`,
+    `${id?`<button class="btn danger" onclick="delTxn('${id}')">Delete</button>`:''}<span style="flex:1"></span><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveTxn('${id}')">Save</button>`);
+  if(SPLITS.length) renderSplits();
+}
+function toggleSplit(){ if(SPLITS.length){ SPLITS=[]; renderSplits(); $('#splitToggle').textContent='Split across categories'; if($('#catField'))$('#catField').style.display=''; }
+  else { const amt=+$('#t_amt').value||0; SPLITS=[{categoryId:$('#t_cat').value,amount:amt||''},{categoryId:S.categories[1]?.id||S.categories[0]?.id,amount:''}]; renderSplits(); $('#splitToggle').textContent='Remove split'; if($('#catField'))$('#catField').style.display='none'; } }
+function renderSplits(){ const w=$('#splitWrap'); if(!SPLITS.length){ w.innerHTML=''; return; }
+  w.innerHTML=`<div class="note" style="margin-bottom:8px">Split total should match the amount. Category dropdown above is ignored while splitting.</div>${SPLITS.map((s,i)=>`<div class="split-row" style="margin-bottom:8px"><select data-i="${i}" class="sp_cat">${S.categories.map(c=>`<option value="${c.id}" ${s.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select><input data-i="${i}" class="sp_amt" type="number" min="0" step="0.01" value="${s.amount}" placeholder="amount"><button class="btn icon danger" onclick="rmSplit(${i})">✕</button></div>`).join('')}<button class="btn ghost sm" onclick="addSplit()">+ Add split</button>`;
+  $$('.sp_cat',w).forEach(el=>el.onchange=e=>SPLITS[+e.target.dataset.i].categoryId=e.target.value);
+  $$('.sp_amt',w).forEach(el=>el.oninput=e=>SPLITS[+e.target.dataset.i].amount=e.target.value); }
+function addSplit(){ SPLITS.push({categoryId:S.categories[0]?.id,amount:''}); renderSplits(); }
+function rmSplit(i){ SPLITS.splice(i,1); if(SPLITS.length<2&&SPLITS.length>0){} renderSplits(); if(!SPLITS.length){ $('#splitToggle').textContent='Split across categories'; if($('#catField'))$('#catField').style.display=''; } }
+function saveTxn(id){
+  const amt=+$('#t_amt').value; if(!(amt>0)){ toast('Enter an amount'); return; }
+  const acct=$('#t_acct').value;
+  const splits=SPLITS.filter(s=>+s.amount>0).map(s=>({categoryId:s.categoryId,amount:+s.amount}));
+  const rec={id:id||uid(),date:$('#t_date').value||todayISO(),type:$('#t_type').value,amount:amt,currency:accountCurrency(acct),categoryId:splits.length?splits[0].categoryId:$('#t_cat').value,accountId:acct,note:$('#t_note').value.trim(),memberId:$('#t_member')?$('#t_member').value:'',splits:splits.length?splits:undefined};
+  if(id){ const old=S.txns.find(x=>x.id===id); if(old) applyAccount(old,-1); const i=S.txns.findIndex(x=>x.id===id); S.txns[i]=rec; } else S.txns.push(rec);
+  applyAccount(rec,1); persist(); closeModal(); toast('Saved'); renderAll();
+}
+function delTxn(id){ const old=S.txns.find(x=>x.id===id); if(old) applyAccount(old,-1); S.txns=S.txns.filter(x=>x.id!==id); persist(); closeModal(); toast('Deleted'); renderAll(); }
+
+// --- quick-add templates ---
+function useTemplate(id){ const t=S.templates.find(x=>x.id===id); if(!t)return; const rec={id:uid(),date:todayISO(),type:t.type,amount:+t.amount,currency:t.currency||accountCurrency(t.accountId),categoryId:t.categoryId,accountId:t.accountId,note:t.note||t.name,memberId:t.memberId||''}; S.txns.push(rec); applyAccount(rec,1); persist(); toast('Added '+t.name); renderCurrent(); }
+function manageTemplates(){ openModal('Quick-add templates',`<p class="sub" style="margin:0">One-tap entries for things you log often.</p><div id="tplList"></div><button class="btn ghost sm" onclick="addTemplateRow()">+ New template</button>`,`<span style="flex:1"></span><button class="btn" onclick="closeModal()">Close</button><button class="btn primary" onclick="saveTemplates()">Save</button>`,true); renderTplList(); }
+let TPL=[];
+function renderTplList(){ TPL=S.templates.map(t=>({...t})); drawTpl(); }
+function drawTpl(){ const w=$('#tplList'); w.innerHTML=(TPL.length?TPL:[]).map((t,i)=>`<div class="card" style="margin:10px 0;padding:12px"><div class="form-grid"><label class="field"><span>Name</span><input class="tpl_name" data-i="${i}" value="${esc(t.name||'')}"></label><label class="field"><span>Type</span><select class="tpl_type" data-i="${i}">${['expense','income'].map(x=>`<option ${t.type===x?'selected':''}>${x}</option>`).join('')}</select></label><label class="field"><span>Amount</span><input class="tpl_amt" data-i="${i}" type="number" min="0" step="0.01" value="${t.amount??''}"></label><label class="field"><span>Category</span><select class="tpl_cat" data-i="${i}">${S.categories.map(c=>`<option value="${c.id}" ${t.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label><label class="field"><span>Account</span><select class="tpl_acct" data-i="${i}">${S.accounts.map(a=>`<option value="${a.id}" ${t.accountId===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></label></div><div style="text-align:right;margin-top:6px"><button class="btn sm danger" onclick="rmTpl(${i})">Remove</button></div></div>`).join('')||'<div class="muted" style="padding:8px">No templates yet.</div>';
+  const bind=(cls,key,num)=>$$('.'+cls,w).forEach(el=>el[el.tagName==='SELECT'?'onchange':'oninput']=e=>{ TPL[+e.target.dataset.i][key]=num?e.target.value:e.target.value; });
+  bind('tpl_name','name'); bind('tpl_type','type'); bind('tpl_amt','amount'); bind('tpl_cat','categoryId'); bind('tpl_acct','accountId'); }
+function addTemplateRow(){ TPL.push({id:uid(),name:'',type:'expense',amount:'',categoryId:S.categories[0]?.id,accountId:S.accounts[0]?.id}); drawTpl(); }
+function rmTpl(i){ TPL.splice(i,1); drawTpl(); }
+function saveTemplates(){ S.templates=TPL.filter(t=>t.name&&+t.amount>0).map(t=>({...t,amount:+t.amount,currency:accountCurrency(t.accountId)})); persist(); closeModal(); toast('Templates saved'); renderTransactions(); }
+
+// --- CSV import ---
+function importCSV(){ openModal('Import CSV / statement',`
+  <p class="sub" style="margin:0">Export a CSV from your bank, then map the columns. Everything stays in your browser.</p>
+  <label class="field"><span>CSV file</span><input type="file" id="csvFile" accept=".csv,text/csv"></label>
+  <div id="csvMap"></div>`,`<span style="flex:1"></span><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="csvImportBtn" onclick="runCSVImport()" disabled>Import</button>`,true);
+  $('#csvFile').onchange=handleCSVFile; }
+let CSV={rows:[],headers:[]};
+function parseCSV(text){ const rows=[]; let row=[],cur='',q=false; for(let i=0;i<text.length;i++){ const ch=text[i]; if(q){ if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; } else { if(ch==='"')q=true; else if(ch===','){row.push(cur);cur='';} else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur='';} else if(ch==='\r'){} else cur+=ch; } } if(cur.length||row.length){row.push(cur);rows.push(row);} return rows.filter(r=>r.some(c=>c.trim()!=='')); }
+function handleCSVFile(e){ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ const all=parseCSV(r.result); if(all.length<2){ toast('CSV looks empty'); return; } CSV.headers=all[0].map(h=>h.trim()); CSV.rows=all.slice(1); drawCSVMap(); }; r.readAsText(f); }
+function guessCol(names){ return (kw)=>{ const i=names.findIndex(h=>kw.some(k=>h.toLowerCase().includes(k))); return i>=0?i:''; }; }
+function drawCSVMap(){ const g=guessCol(CSV.headers); const opt=(sel)=>CSV.headers.map((h,i)=>`<option value="${i}" ${sel===i?'selected':''}>${esc(h||('Col '+(i+1)))}</option>`).join('');
+  $('#csvMap').innerHTML=`<div class="hr"></div><div class="form-grid">
+    <label class="field"><span>Date column</span><select id="cs_date"><option value="">—</option>${opt(g(['date','posted','time']))}</select></label>
+    <label class="field"><span>Amount column</span><select id="cs_amt"><option value="">—</option>${opt(g(['amount','value','debit','total']))}</select></label>
+    <label class="field"><span>Description column</span><select id="cs_desc"><option value="">—</option>${opt(g(['desc','memo','name','payee','detail']))}</select></label>
+    <label class="field"><span>Sign convention</span><select id="cs_sign"><option value="neg">Negative = expense</option><option value="pos">Positive = expense</option></select></label>
+    <label class="field"><span>Import into account</span><select id="cs_acct">${S.accounts.map(a=>`<option value="${a.id}">${esc(a.name)} (${a.currency})</option>`).join('')}</select></label>
+    <label class="field"><span>Default category</span><select id="cs_cat">${S.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>
+  </div>
+  <div class="note">Found <b>${CSV.rows.length}</b> rows. Amounts are read in the chosen account's currency. Ledger auto-matches a category when the description contains a category name, else uses the default. Likely duplicates (same date + amount + description already present) are skipped.</div>`;
+  $('#csvImportBtn').disabled=false; }
+function runCSVImport(){ const di=+$('#cs_date').value, ai=+$('#cs_amt').value, ni=$('#cs_desc').value===''?-1:+$('#cs_desc').value;
+  if($('#cs_date').value===''||$('#cs_amt').value===''){ toast('Map date and amount'); return; }
+  const acct=$('#cs_acct').value, cur=accountCurrency(acct), defCat=$('#cs_cat').value, sign=$('#cs_sign').value;
+  const existing=new Set(S.txns.map(t=>t.date+'|'+(+t.amount).toFixed(2)+'|'+(t.note||'').toLowerCase().slice(0,24)));
+  let added=0,skipped=0;
+  CSV.rows.forEach(r=>{ let raw=(r[ai]||'').replace(/[^0-9.,\-()]/g,'').replace(/\((.*)\)/,'-$1'); raw=raw.replace(/,(?=\d{3}\b)/g,''); raw=raw.replace(',','.'); let num=parseFloat(raw); if(!isFinite(num)||num===0){ return; }
+    let type,amount; const isExpense= sign==='neg'? num<0 : num>0; type=isExpense?'expense':'income'; amount=Math.abs(num);
+    let date=(r[di]||'').trim(); const d=new Date(date); date=isFinite(d)?d.toISOString().slice(0,10):todayISO();
+    const desc=ni>=0?(r[ni]||'').trim():'';
+    const key=date+'|'+amount.toFixed(2)+'|'+desc.toLowerCase().slice(0,24); if(existing.has(key)){ skipped++; return; } existing.add(key);
+    const matched=S.categories.find(c=>desc.toLowerCase().includes(c.name.toLowerCase()));
+    const rec={id:uid(),date,type,amount,currency:cur,categoryId:(matched?matched.id:defCat),accountId:acct,note:desc}; S.txns.push(rec); applyAccount(rec,1); added++; });
+  persist(); closeModal(); toast(`Imported ${added}, skipped ${skipped} duplicate${skipped!==1?'s':''}`); renderTransactions(); }
+
+// --- categories ---
+const PALETTE=['#2F5D45','#3C7757','#4E7C63','#3A6A86','#C1912E','#CBA24A','#D3B063','#A44A32','#C56A50','#8F6A18','#6C8C77','#8A8069'];
+function editCategory(id){ const c=id?S.categories.find(x=>x.id===id):{id:'',name:'',group:'Lifestyle',budget:'',color:PALETTE[S.categories.length%PALETTE.length]}; const groups=[...new Set([...S.categories.map(x=>x.group),'Essentials','Lifestyle','Savings'])];
+  openModal(id?'Edit category':'New category',`<div class="form-grid"><label class="field"><span>Name</span><input id="c_name" value="${esc(c.name)}"></label><label class="field"><span>Group</span><input id="c_group" list="grouplist" value="${esc(c.group)}"><datalist id="grouplist">${groups.map(g=>`<option value="${esc(g)}">`).join('')}</datalist></label><label class="field"><span>Monthly budget (${baseCur()})</span><input id="c_budget" type="number" min="0" step="10" value="${c.budget}"></label><label class="field"><span>Color</span><input id="c_color" type="color" value="${c.color}" style="height:42px;padding:4px"></label></div>`,
+    `${id?`<button class="btn danger" onclick="delCategory('${id}')">Delete</button>`:''}<span style="flex:1"></span><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveCategory('${id}')">Save</button>`); }
+function saveCategory(id){ const name=$('#c_name').value.trim(); if(!name){ toast('Name required'); return; } const rec={id:id||uid(),name,group:$('#c_group').value.trim()||'Other',budget:+$('#c_budget').value||0,color:$('#c_color').value}; if(id){ const i=S.categories.findIndex(x=>x.id===id); S.categories[i]=rec; } else S.categories.push(rec); persist(); closeModal(); toast('Saved'); renderAll(); }
+function delCategory(id){ if(S.txns.some(t=>t.categoryId===id||(t.splits||[]).some(s=>s.categoryId===id))){ toast('Reassign its transactions first'); return; } if(S.recurring.some(r=>r.categoryId===id)){ toast('Used by a recurring item'); return; } S.categories=S.categories.filter(x=>x.id!==id); persist(); closeModal(); toast('Deleted'); renderAll(); }
+
+// --- accounts ---
+function editAccount(id){ const a=id?S.accounts.find(x=>x.id===id):{id:'',name:'',type:'checking',balance:'',currency:baseCur()}; const types=['checking','savings','cash','investment','credit','loan','other'];
+  openModal(id?'Edit account':'New account',`<div class="form-grid"><label class="field"><span>Name</span><input id="a_name" value="${esc(a.name)}"></label><label class="field"><span>Type</span><select id="a_type">${types.map(t=>`<option value="${t}" ${a.type===t?'selected':''}>${t[0].toUpperCase()+t.slice(1)}</option>`).join('')}</select></label><label class="field"><span>Currency</span><input id="a_cur" list="curlist" value="${esc(a.currency||baseCur())}"><datalist id="curlist">${knownCurrencies().map(c=>`<option value="${c}">`).join('')}</datalist></label><label class="field"><span>Current balance</span><input id="a_bal" type="number" step="0.01" value="${a.balance}"></label></div><div class="note">For credit cards and loans, enter the amount owed as a positive number and pick type "credit" or "loan" — it counts as a liability. New currencies get a rate of 1; set the real rate under Profile → Exchange rates.</div>`,
+    `${id?`<button class="btn danger" onclick="delAccount('${id}')">Delete</button>`:''}<span style="flex:1"></span><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveAccount('${id}')">Save</button>`); }
+function saveAccount(id){ const name=$('#a_name').value.trim(); if(!name){ toast('Name required'); return; } const cur=($('#a_cur').value.trim()||baseCur()).toUpperCase(); if(!(cur in S.settings.rates)) S.settings.rates[cur]=1; const rec={id:id||uid(),name,type:$('#a_type').value,balance:+$('#a_bal').value||0,currency:cur}; if(id){ const i=S.accounts.findIndex(x=>x.id===id); S.accounts[i]=rec; } else S.accounts.push(rec); persist(); closeModal(); toast('Saved'); renderProfile(); }
+function delAccount(id){ if(S.txns.some(t=>t.accountId===id)){ toast('Reassign its transactions first'); return; } S.accounts=S.accounts.filter(x=>x.id!==id); persist(); closeModal(); toast('Deleted'); renderProfile(); }
+
+// --- members ---
+function editMember(id){ const m=id?Sel.member(id):{id:'',name:''}; openModal(id?'Edit person':'Add person',`<label class="field"><span>Name</span><input id="m_name" value="${esc(m.name)}"></label>`,`${id?`<button class="btn danger" onclick="delMember('${id}')">Remove</button>`:''}<span style="flex:1"></span><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveMember('${id}')">Save</button>`); }
+function saveMember(id){ const name=$('#m_name').value.trim(); if(!name){ toast('Name required'); return; } if(id){ Sel.member(id).name=name; } else S.profile.members.push({id:uid(),name}); persist(); closeModal(); toast('Saved'); renderProfile(); }
+function delMember(id){ S.profile.members=S.profile.members.filter(m=>m.id!==id); S.txns.forEach(t=>{ if(t.memberId===id) t.memberId=''; }); persist(); closeModal(); toast('Removed'); renderProfile(); }
+
+// --- rates ---
+let RATES={};
+function editRates(){ RATES={}; knownCurrencies().filter(c=>c!==baseCur()).forEach(c=>RATES[c]=rateOf(c)); openModal('Exchange rates',`<p class="sub" style="margin:0">1 unit of each currency expressed in your base currency, <b>${baseCur()}</b>. Update when you like — nothing is fetched online.</p><div class="form-grid">${Object.keys(RATES).map(c=>`<label class="field"><span>1 ${c} =</span><input class="rate_in" data-c="${c}" type="number" min="0" step="any" value="${RATES[c]}"> </label>`).join('')||'<div class="muted">Only your base currency is in use.</div>'}</div>`,`<span style="flex:1"></span><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveRates()">Save rates</button>`);
+  setTimeout(()=>$$('.rate_in').forEach(el=>el.oninput=e=>RATES[e.target.dataset.c]=+e.target.value),0); }
+function saveRates(){ Object.entries(RATES).forEach(([c,v])=>{ if(v>0) S.settings.rates[c]=+v; }); persist(); closeModal(); toast('Rates saved'); renderAll(); }
+
+// --- investments ---
+function editInvestment(id){ const i=id?S.investments.find(x=>x.id===id):{id:'',name:'',ticker:'',assetClass:'stock',quantity:'',costBasis:'',price:'',currency:baseCur()}; const classes=[['stock','Stocks / ETFs'],['bond','Bonds'],['cash','Cash / money market'],['crypto','Crypto'],['realestate','Real estate'],['other','Other']];
+  openModal(id?'Edit holding':'Add holding',`<div class="form-grid"><label class="field"><span>Name</span><input id="i_name" value="${esc(i.name)}" placeholder="e.g. S&amp;P 500 Index"></label><label class="field"><span>Ticker (optional)</span><input id="i_ticker" value="${esc(i.ticker||'')}" placeholder="VOO"></label><label class="field"><span>Asset class</span><select id="i_class">${classes.map(([v,l])=>`<option value="${v}" ${i.assetClass===v?'selected':''}>${l}</option>`).join('')}</select></label><label class="field"><span>Currency</span><input id="i_cur" list="curlist2" value="${esc(i.currency||baseCur())}"><datalist id="curlist2">${knownCurrencies().map(c=>`<option value="${c}">`).join('')}</datalist></label><label class="field"><span>Quantity / units</span><input id="i_qty" type="number" min="0" step="any" value="${i.quantity}"></label><label class="field"><span>Cost basis (per unit)</span><input id="i_cost" type="number" min="0" step="any" value="${i.costBasis}"></label><label class="field"><span>Current price (per unit)</span><input id="i_price" type="number" min="0" step="any" value="${i.price}"></label></div><div class="note">Prices are per unit, in the holding's currency. For a single lump holding, set quantity to 1 and use totals. Update the current price periodically.</div>`,
+    `${id?`<button class="btn danger" onclick="delInvestment('${id}')">Delete</button>`:''}<span style="flex:1"></span><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveInvestment('${id}')">Save</button>`); }
+function saveInvestment(id){ const name=$('#i_name').value.trim(); if(!name){ toast('Name required'); return; } const cur=($('#i_cur').value.trim()||baseCur()).toUpperCase(); if(!(cur in S.settings.rates)) S.settings.rates[cur]=1; const rec={id:id||uid(),name,ticker:$('#i_ticker').value.trim(),assetClass:$('#i_class').value,quantity:+$('#i_qty').value||0,costBasis:+$('#i_cost').value||0,price:+$('#i_price').value||0,currency:cur}; if(id){ const i=S.investments.findIndex(x=>x.id===id); S.investments[i]=rec; } else S.investments.push(rec); persist(); closeModal(); toast('Saved'); renderInvestments(); }
+function delInvestment(id){ S.investments=S.investments.filter(x=>x.id!==id); persist(); closeModal(); toast('Deleted'); renderInvestments(); }
+
+// --- goals ---
+function editGoal(id){ const g=id?S.goals.find(x=>x.id===id):{id:'',name:'',target:'',saved:'',targetDate:''}; openModal(id?'Edit goal':'New goal',`<div class="form-grid"><label class="field" style="grid-column:1/-1"><span>Goal name</span><input id="g_name" value="${esc(g.name)}" placeholder="e.g. House down payment"></label><label class="field"><span>Target amount (${baseCur()})</span><input id="g_target" type="number" min="0" step="100" value="${g.target}"></label><label class="field"><span>Saved so far</span><input id="g_saved" type="number" min="0" step="100" value="${g.saved}"></label><label class="field" style="grid-column:1/-1"><span>Target date (optional)</span><input id="g_date" type="date" value="${g.targetDate||''}"></label></div>`,
+    `${id?`<button class="btn danger" onclick="delGoal('${id}')">Delete</button>`:''}<span style="flex:1"></span><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveGoal('${id}')">Save</button>`); }
+function saveGoal(id){ const name=$('#g_name').value.trim(); if(!name){ toast('Name required'); return; } const rec={id:id||uid(),name,target:+$('#g_target').value||0,saved:+$('#g_saved').value||0,targetDate:$('#g_date').value||''}; if(id){ const i=S.goals.findIndex(x=>x.id===id); S.goals[i]=rec; } else S.goals.push(rec); persist(); closeModal(); toast('Saved'); renderGoals(); }
+function delGoal(id){ S.goals=S.goals.filter(x=>x.id!==id); persist(); closeModal(); toast('Deleted'); renderGoals(); }
+
+// --- recurring ---
+function editRecurring(id){ const r=id?S.recurring.find(x=>x.id===id):{id:'',name:'',type:'expense',amount:'',currency:baseCur(),categoryId:S.categories[0]?.id,accountId:S.accounts[0]?.id,cadence:{unit:'month',every:1},nextDue:todayISO(),active:true,memberId:''};
+  const members=S.profile.members;
+  openModal(id?'Edit recurring item':'New recurring item',`<div class="form-grid">
+    <label class="field"><span>Name</span><input id="r_name" value="${esc(r.name)}" placeholder="Rent, Netflix, Salary…"></label>
+    <label class="field"><span>Type</span><select id="r_type">${['expense','income'].map(x=>`<option value="${x}" ${r.type===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select></label>
+    <label class="field"><span>Account</span><select id="r_acct">${S.accounts.map(a=>`<option value="${a.id}" data-cur="${a.currency}" ${r.accountId===a.id?'selected':''}>${esc(a.name)} (${a.currency})</option>`).join('')}</select></label>
+    <label class="field"><span>Amount</span><input id="r_amt" type="number" min="0" step="0.01" value="${r.amount}"></label>
+    <label class="field"><span>Category</span><select id="r_cat">${S.categories.map(c=>`<option value="${c.id}" ${r.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+    ${members.length?`<label class="field"><span>Who</span><select id="r_member"><option value="">—</option>${members.map(m=>`<option value="${m.id}" ${r.memberId===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}</select></label>`:''}
+    <label class="field"><span>Every</span><input id="r_every" type="number" min="1" step="1" value="${r.cadence.every||1}"></label>
+    <label class="field"><span>Period</span><select id="r_unit">${['day','week','month','year'].map(u=>`<option value="${u}" ${r.cadence.unit===u?'selected':''}>${u}</option>`).join('')}</select></label>
+    <label class="field"><span>Next due date</span><input id="r_next" type="date" value="${r.nextDue}"></label>
+    <label class="field"><span>Status</span><select id="r_active"><option value="1" ${r.active?'selected':''}>Active</option><option value="0" ${r.active?'':'selected'}>Paused</option></select></label>
+  </div>`,
+    `${id?`<button class="btn danger" onclick="delRecurring('${id}')">Delete</button>`:''}<span style="flex:1"></span><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveRecurring('${id}')">Save</button>`); }
+function saveRecurring(id){ const name=$('#r_name').value.trim(); if(!name){ toast('Name required'); return; } const amt=+$('#r_amt').value; if(!(amt>0)){ toast('Enter an amount'); return; } const acct=$('#r_acct').value;
+  const rec={id:id||uid(),name,type:$('#r_type').value,amount:amt,currency:accountCurrency(acct),categoryId:$('#r_cat').value,accountId:acct,memberId:$('#r_member')?$('#r_member').value:'',cadence:{unit:$('#r_unit').value,every:+$('#r_every').value||1},nextDue:$('#r_next').value||todayISO(),active:$('#r_active').value==='1',lastPosted:id?(S.recurring.find(x=>x.id===id)?.lastPosted||null):null};
+  if(id){ const i=S.recurring.findIndex(x=>x.id===id); S.recurring[i]=rec; } else S.recurring.push(rec); persist(); closeModal(); toast('Saved'); renderRecurring(); }
+function delRecurring(id){ S.recurring=S.recurring.filter(x=>x.id!==id); persist(); closeModal(); toast('Deleted'); renderRecurring(); }
+
+/* ==========================================================================
+   9. Data: export/import/reset, sync, AI, PWA install
+   ========================================================================== */
+function exportData(){ const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`ledger-backup-${todayISO()}.json`; a.click(); URL.revokeObjectURL(a.href); toast('Exported'); }
+function importData(e){ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ const obj=JSON.parse(r.result); if(!obj.version||!obj.categories) throw new Error('Not a Ledger backup'); S=migrate(obj); persist(); toast('Data imported'); renderAll(); switchTab('dashboard'); }catch(err){ toast('Import failed: '+err.message); } }; r.readAsText(f); e.target.value=''; }
+function resetAll(){ openModal('Reset all data?','<p style="font-size:14px;color:var(--ink-soft)">This permanently deletes every account, transaction, investment, recurring item, goal and profile setting in this browser. Export a backup first if you might want it back.</p>',`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="confirmReset()">Delete everything</button>`); }
+function confirmReset(){ S=seed(); persist(); closeModal(); toast('All data reset'); renderAll(); switchTab('dashboard'); }
+
+function saveSyncConfig(){ S.sync.url=$('#sy_url').value.trim(); S.sync.anonKey=$('#sy_key').value.trim(); S.sync.table=$('#sy_table').value.trim()||'ledger_vault'; S.sync.vaultId=$('#sy_vault').value.trim(); S.sync.enabled=!!(S.sync.url&&S.sync.anonKey&&S.sync.vaultId); persist(); toast('Sync settings saved'); renderData(); renderSyncPill(); }
+async function doSync(dir){ const pass=$('#sy_pass').value; saveSyncConfig(); if(!S.sync.url||!S.sync.anonKey||!S.sync.vaultId){ toast('Fill in URL, key and Vault ID first'); return; } if(!pass){ toast('Enter your encryption passphrase'); return; } try{ toast(dir==='push'?'Encrypting & uploading…':'Downloading & decrypting…'); if(dir==='push') await Sync.push(pass); else await Sync.pull(pass); toast(dir==='push'?'Pushed to cloud ✓':'Pulled from cloud ✓'); renderAll(); }catch(e){ console.error(e); toast('Sync error: '+e.message); } }
+
+function saveAIConfig(){ S.ai.enabled=$('#ai_en').value==='on'; S.ai.provider=$('#ai_prov').value; S.ai.model=$('#ai_model').value.trim(); S.ai.apiKey=$('#ai_key').value.trim(); if(S.ai.enabled&&!S.ai.apiKey){ S.ai.enabled=false; toast('Add an API key to enable'); } else toast('AI settings saved'); persist(); renderData(); }
+function previewAIPayload(){ openModal('What would be sent',`<p class="sub" style="margin:0">Exactly this anonymized snapshot (plus a short instruction) goes to your chosen provider. No names, account names or transaction notes are included.</p><textarea readonly style="min-height:340px;font-family:'IBM Plex Mono',monospace;font-size:12px">${esc(JSON.stringify(AI.summary(),null,2))}</textarea>`,`<span style="flex:1"></span><button class="btn" onclick="closeModal()">Close</button>`,true); }
+async function runAI(){ if(!(S.ai.enabled&&S.ai.apiKey)){ toast('Enable AI coaching in Data first'); return; } const out=$('#aiOut'); out.innerHTML='<div class="note">Contacting '+esc(S.ai.provider)+'… your snapshot is being sent now.</div>'; try{ const text=await AI.generate(); out.innerHTML=`<div class="advice good"><h3>✨ AI coaching</h3><p style="white-space:pre-wrap">${esc(text)}</p></div>`; }catch(e){ out.innerHTML=`<div class="advice alert"><h3>⚠️ Couldn't generate</h3><p>${esc(e.message)}</p></div>`; } }
+
+// PWA install
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredInstall=e; if(CURRENT==='data'&&$('#installBtn')) $('#installBtn').style.display=''; });
+async function doInstall(){ if(!deferredInstall){ toast('Install not available here'); return; } deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; $('#installBtn').style.display='none'; }
+
+/* expose inline handlers */
+Object.assign(window,{switchTab,editTxn,saveTxn,delTxn,toggleSplit,addSplit,rmSplit,useTemplate,manageTemplates,addTemplateRow,rmTpl,saveTemplates,
+  importCSV,runCSVImport,editCategory,saveCategory,delCategory,editAccount,saveAccount,delAccount,editMember,saveMember,delMember,editRates,saveRates,
+  editInvestment,saveInvestment,delInvestment,editGoal,saveGoal,delGoal,editRecurring,saveRecurring,delRecurring,postRecurring,postAllDue,
+  saveProfile,exportData,resetAll,confirmReset,closeModal,shiftBudgetMonth,quickAddTxn,saveSyncConfig,doSync,saveAIConfig,previewAIPayload,runAI,doInstall});
+
+/* ==========================================================================
+   10. Boot
+   ========================================================================== */
+(async function boot(){
+  const loaded=await Store.load();
+  if(loaded && loaded.version) S=migrate(loaded); else await Store.save(S);
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')){ navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
+  renderAll();
+})();
+</script>
+</body>
+</html>

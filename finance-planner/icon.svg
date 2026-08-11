@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Ledger">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#33604A"/>
+      <stop offset="1" stop-color="#2A5340"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- stacked ledger bars -->
+  <g fill="#ECE2CC" opacity="0.95">
+    <rect x="120" y="300" width="56" height="96" rx="12"/>
+    <rect x="228" y="244" width="56" height="152" rx="12"/>
+    <rect x="336" y="176" width="56" height="220" rx="12"/>
+  </g>
+  <!-- trend line + coin -->
+  <path d="M120 300 L256 236 L392 152" fill="none" stroke="#C1912E" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="392" cy="152" r="30" fill="#C1912E"/>
+  <text x="392" y="164" text-anchor="middle" font-family="Georgia, serif" font-size="34" font-weight="700" fill="#2A5340">$</text>
+</svg>
