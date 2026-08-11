@@ -2,16 +2,143 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=./puppy-training-tracker/">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Clay — Projects</title>
-<link rel="canonical" href="./puppy-training-tracker/">
+<meta name="description" content="Clay is a personal workspace. Each project lives isolated in its own folder and is published as a self-contained web app.">
+<meta name="theme-color" content="#33463A">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2333463A'/%3E%3Ctext x='32' y='45' font-family='Georgia,serif' font-size='36' font-weight='700' fill='%23ECE2CC' text-anchor='middle'%3EC%3C/text%3E%3C/svg%3E">
+<!--
+  Clay — workspace index.
+  This page is intentionally GENERIC: the site root lists the projects rather
+  than redirecting to any one of them, so the root URL stays stable as projects
+  come and go. Add a new project by copying a <li class="project"> block below.
+-->
 <style>
-  body{font-family:system-ui,sans-serif;background:#ECE2CC;color:#2B2A28;
-       display:grid;place-items:center;min-height:100vh;margin:0}
-  a{color:#96701F}
+  :root{
+    --paper:#ECE2CC; --paper-2:#E4D7B9; --card:#F6EFDE;
+    --ink:#2B2A28; --ink-soft:#5B5647; --ink-faint:#8A8069;
+    --line:#D3C29A; --line-soft:#E0D2B0;
+    --gold:#C1912E; --gold-deep:#8F6A18; --forest:#33463A; --forest-soft:#3C7757;
+    --shadow:0 1px 2px rgba(43,42,40,.05),0 8px 24px rgba(43,42,40,.07);
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1100px 560px at 10% -10%, rgba(51,70,58,.07), transparent),
+      radial-gradient(900px 480px at 100% 0%, rgba(193,145,46,.08), transparent),
+      var(--paper);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    line-height:1.55;
+    min-height:100vh;
+    display:flex; flex-direction:column;
+  }
+  .wrap{width:100%;max-width:880px;margin:0 auto;padding:0 20px;}
+  header{padding:64px 0 30px;}
+  .mark{
+    width:54px;height:54px;border-radius:15px;display:grid;place-items:center;
+    background:linear-gradient(160deg,var(--forest),var(--forest-soft));
+    color:var(--paper);font-family:Georgia,serif;font-weight:700;font-size:28px;
+    box-shadow:var(--shadow);margin-bottom:18px;
+  }
+  h1{font-family:Georgia,'Times New Roman',serif;font-size:40px;margin:0 0 8px;letter-spacing:.3px;}
+  header p{margin:0;color:var(--ink-soft);font-size:16px;max-width:56ch;}
+  h2.section{
+    font-family:Georgia,serif;font-size:13px;font-weight:700;text-transform:uppercase;
+    letter-spacing:1.2px;color:var(--ink-faint);margin:0 0 14px;
+  }
+  ul.projects{list-style:none;padding:0;margin:0;display:grid;gap:16px;}
+  @media(min-width:720px){ul.projects{grid-template-columns:1fr 1fr;}}
+  .project a.card{
+    display:flex;flex-direction:column;height:100%;gap:10px;
+    background:var(--card);border:1px solid var(--line-soft);border-radius:16px;
+    padding:20px 21px;text-decoration:none;color:inherit;box-shadow:var(--shadow);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .project a.card:hover,.project a.card:focus-visible{
+    transform:translateY(-2px);border-color:var(--line);
+    box-shadow:0 2px 4px rgba(43,42,40,.06),0 14px 34px rgba(43,42,40,.11);
+    outline:none;
+  }
+  .project a.card:focus-visible{outline:2px solid var(--gold);outline-offset:3px;}
+  .emoji{font-size:26px;line-height:1;}
+  .project h3{margin:0;font-family:Georgia,serif;font-size:19px;font-weight:600;}
+  .project .desc{margin:0;font-size:14px;color:var(--ink-soft);flex:1;}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;}
+  .tag{
+    font-size:11.5px;font-weight:600;color:var(--ink-faint);
+    background:var(--paper-2);border:1px solid var(--line-soft);
+    border-radius:999px;padding:2px 9px;white-space:nowrap;
+  }
+  .go{font-size:13.5px;font-weight:600;color:var(--gold-deep);}
+  .project a.card:hover .go{text-decoration:underline;}
+  .meta{margin-top:34px;padding:16px 18px;background:var(--card);border:1px dashed var(--line);border-radius:14px;font-size:13.5px;color:var(--ink-soft);}
+  .meta code{background:var(--paper-2);padding:1px 6px;border-radius:5px;font-size:.92em;}
+  .meta a{color:var(--gold-deep);}
+  footer{margin-top:auto;padding:40px 0 34px;color:var(--ink-faint);font-size:13px;}
+  footer a{color:var(--ink-faint);}
 </style>
 </head>
 <body>
-<p>Redirecting to the <a href="./puppy-training-tracker/">Puppy Tracker</a>…</p>
+<div class="wrap">
+  <header>
+    <div class="mark" aria-hidden="true">C</div>
+    <h1>Clay</h1>
+    <p>A personal workspace. Each project lives isolated in its own folder and is
+       published as a self-contained web app — no build step, no dependencies.</p>
+  </header>
+
+  <main>
+    <h2 class="section">Projects</h2>
+    <ul class="projects">
+
+      <li class="project">
+        <a class="card" href="./puppy-training-tracker/">
+          <span class="emoji" aria-hidden="true">🐾</span>
+          <h3>Field Journal</h3>
+          <p class="desc">A personalized, source-backed training plan for each of your dogs,
+             with progress tracking and a daily journal with streaks.</p>
+          <div class="tags">
+            <span class="tag">Multiple dogs</span>
+            <span class="tag">Daily journal</span>
+            <span class="tag">Live sharing</span>
+          </div>
+          <span class="go">Open Field Journal →</span>
+        </a>
+      </li>
+
+      <li class="project">
+        <a class="card" href="./finance-planner/">
+          <span class="emoji" aria-hidden="true">💰</span>
+          <h3>Ledger</h3>
+          <p class="desc">Local-first budgeting and financial planning: budgets, recurring
+             bills, investments, goals and tailored advice — your data stays in your browser.</p>
+          <div class="tags">
+            <span class="tag">Local-first</span>
+            <span class="tag">Multi-currency</span>
+            <span class="tag">Installable</span>
+          </div>
+          <span class="go">Open Ledger →</span>
+        </a>
+      </li>
+
+    </ul>
+
+    <p class="meta">
+      Source and documentation live in the repository — see the
+      <a href="https://github.com/joaopereira-dot/Clay#readme">README</a>,
+      <a href="https://github.com/joaopereira-dot/Clay/blob/HEAD/CHANGELOG.md">CHANGELOG</a>
+      and <a href="https://github.com/joaopereira-dot/Clay/blob/HEAD/CONTRIBUTING.md">CONTRIBUTING</a>.
+      Each project also carries its own <code>README.md</code>.
+    </p>
+  </main>
+
+  <footer>
+    Clay · a personal workspace ·
+    <a href="https://github.com/joaopereira-dot/Clay">github.com/joaopereira-dot/Clay</a>
+  </footer>
+</div>
 </body>
 </html>

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-11
+### Added
+- **Root project launcher** (`index.html`): the site root now lists every
+  project as a card instead of redirecting to one of them, so the root URL
+  stays generic as projects are added or retired.
+- **Pull-request workflow** documented in `CONTRIBUTING.md`: feature branch →
+  PR against the default branch → review → merge, with no direct pushes.
+### Changed
+- Root `README.md`: replaced the stale, branch-specific "This branch" section
+  with a "Published site" section covering the launcher and project URLs.
+### Removed
+- The root `<meta http-equiv="refresh">` redirect (and its `canonical` link) to
+  `puppy-training-tracker/`.
+
 ## [1.3.0] - 2026-08-11
 ### Added
 - **Ledger** (`finance-planner/`): major feature expansion tailoring the app to
@@ -71,7 +85,8 @@ First documented release of the **Puppy Training Tracker** (`puppy-training-trac
   invite link).
 - Offline-first storage, responsive layout, and a self-contained Artifact build.
 
-[Unreleased]: https://github.com/joaopereira-dot/Clay/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/joaopereira-dot/Clay/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/joaopereira-dot/Clay/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/joaopereira-dot/Clay/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/joaopereira-dot/Clay/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/joaopereira-dot/Clay/compare/v1.0.0...v1.1.0
