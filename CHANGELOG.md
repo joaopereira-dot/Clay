@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-08-11
+### Added
+- **Ledger — Personal Finance Planner** (`finance-planner/`): a new, isolated
+  local-first budgeting and financial-planning app in the spirit of YNAB.
+  Category (envelope) budgeting, expense/income transactions, investment
+  tracking with allocation and P/L, savings goals with pacing, a financial
+  profile, and a rule-based advice engine (emergency fund, savings rate,
+  over-budget categories, spending concentration, high-interest debt,
+  allocation vs. risk tolerance, idle cash, goal pacing). Data stays in the
+  browser by default, with JSON backup/restore and an **optional
+  end-to-end-encrypted cloud-sync** adapter (AES-GCM / PBKDF2 in-browser;
+  Supabase schema and docs under `finance-planner/sync/`).
+
 ## [1.1.0] - 2026-07-04
 ### Added
 - **Daily journal with streaks** (`puppy-training-tracker`): log dated entries
@@ -31,6 +44,7 @@ First documented release of the **Puppy Training Tracker** (`puppy-training-trac
   invite link).
 - Offline-first storage, responsive layout, and a self-contained Artifact build.
 
-[Unreleased]: https://github.com/joaopereira-dot/Clay/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/joaopereira-dot/Clay/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/joaopereira-dot/Clay/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/joaopereira-dot/Clay/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/joaopereira-dot/Clay/releases/tag/v1.0.0
